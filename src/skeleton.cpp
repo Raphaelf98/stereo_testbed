@@ -1,4 +1,4 @@
-﻿#include <ros/ros.h>
+#include <ros/ros.h>
 #include <image_transport/image_transport.h>
 #include <opencv2/highgui/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
@@ -12,10 +12,10 @@
 #include<rviz_visual_tools/rviz_visual_tools.h>
 
 
-#include<libalglib/linalg.h>
+//#include<libalglib/linalg.h>
 
-#include<libalglib/interpolation.h>
-#include<libalglib/ap.h>
+//#include<libalglib/interpolation.h>
+//#include<libalglib/ap.h>
 
 cv::Mat gray;
 //cv::Mat *m;
@@ -45,14 +45,14 @@ std::vector<cv::Point> locations;
 
 const int max_thresh = 255;
 int thresh = 100;
-
+int k=1;
 int curve_thresh_max = 0;
 int curve_thresh_min = 0;
 int max_curve_thresh =1000;
 cv::Point2i  tcp;
 int step_min = 0;
 int step_max = 100;
-
+bool snap = true;
 struct Point
 {
   int x;
@@ -81,9 +81,9 @@ std::vector<Point> convertToROSMsg(cv::Mat frame1)
 
 { std::vector<cv::Point>  coordinates;
 
-    cv::findNonZero(frame1,coordinates);
+   cv::findNonZero(frame1,coordinates);
 
-   Point my_array[coordinates.size()];
+  Point my_array[coordinates.size()];
   for (int t=0; t < coordinates.size(); t++)
   {
   int x = coordinates[t].x;
@@ -122,7 +122,7 @@ void LinearEstimator(std::vector<cv::Point> points)
   pt2.y = cvRound(line[3] + line[1]*t);
   cv::line( img, pt1, pt2, cv::Scalar(255,255,255), 1, 16, 0 );
 
-  cv::imshow( "Approximation", img );
+  //cv::imshow( "Approximation", img );
 }
 
 
@@ -135,43 +135,51 @@ cv::Mat skeletonize(cv::Mat frame)
   cv::Mat temp;
   cv::Mat eroded;
   cv::Mat element = cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3, 3));
-  cv::Mat element1= cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3,3));
+  cv::Mat element1= cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(1,1));
 // source: http://felix.abecassis.me/2011/09/opencv-morphological-skeleton/
 
 
     //cv::imshow("input ", frame);
+  //int c = 1;
   do
 
   { //cv::imshow("frame", frame);
       //input frame is opened and saved to temp
+    //if (snap) cv::imwrite("/home/ulzea/RESULTS/skeletonalgorithm/binaryimage/binarayimage_"+ std::to_string(c)+ ".png", frame);
     cv::erode(frame, eroded, element);
+    //if (snap) cv::imwrite("/home/ulzea/RESULTS/skeletonalgorithm/eroded/erosion_"+std::to_string(c)+ ".png", eroded);
     cv::dilate(eroded, temp, element); // temp = open(img)
     //cv::imshow("opening", temp);
-
+    //if (snap) cv::imwrite("/home/ulzea/RESULTS/skeletonalgorithm/opened/opening_"+ std::to_string(c)+ ".png", temp);
     //substract input frame from temp (opening result)´
     //Def. substract: Calculates the per-element difference between two arrays or array and a scalar
     cv::subtract(frame, temp, temp);
+    //if (snap) cv::imwrite("/home/ulzea/RESULTS/skeletonalgorithm/subtracted/subtraction_"+std::to_string(c)+ ".png", temp);
     cv::imshow("subtracted ", temp);
     //cv::imshow("skel ", skel);
     // add the result from substract to every skel from last iteration
     cv::bitwise_or(skel, temp, skel);
+    //if (snap) cv::imwrite("/home/ulzea/RESULTS/skeletonalgorithm/skeleton/skeleton_"+std::to_string(c)+ ".png", skel);
     //cv::imshow("or",skel);
     //every new iteration uses the frame eroded
     eroded.copyTo(frame);
     //until no frame exists, then the loop is exited
+
+
     done = (cv::countNonZero(frame) == 0);
+    //c++;
   } while (!done);
+   //snap = false;
 
 
 
 
 
-cv::imshow("skeleton", skel);
-//cv::erode(skel, skel, element1);
+cv::erode(skel, skel, element1);
 //cv::dilate(skel,skel,element1);
+cv::imshow("skeleton", skel);
 
-
-
+//if (snap == true) cv::imwrite("/home/ulzea/RESULTS/skeleton.png", skel); snap= false;
 return skel;
 
 
@@ -214,14 +222,14 @@ for( size_t j= 0; j < vecContourPoints.size(); j++ ){
                pow( f2ndDerivative.x + f2ndDerivative.y, 3.0 ) ) );
 
 
-       if (curvature2D < (double)curve_thresh_max/1000 && curvature2D > (double)curve_thresh_min/1000)
-       {
+       //if (curvature2D < (double)curve_thresh_max/1000 && curvature2D > (double)curve_thresh_min/1000)
+      // {
 
        vecCurvature[i] = curvature2D;
        std::cout<< "curvature: "<< vecCurvature[i] << std::endl;
        vecCurvaturePosition[i].x = pos.x;
        vecCurvaturePosition[i].y =pos.y;
-       }
+       //}
        posOlder = posOld;
        posOld = pos;
        }
@@ -350,13 +358,16 @@ void convexHull(int, void*)
   cv::Mat canny_output;
   //cv::imshow("cannyinput", canny);
   cv::Canny(canny, canny_output, thresh, thresh*ratio,kernel_size);
+  //if (snap == true) cv::imwrite("/home/ulzea/RESULTS/cannyimage.png", canny_output); snap= false;
   //cv :: imshow("canny", canny_output);
   std::vector<std::vector<cv::Point>> contours;
   //std::vector<cv::Point> contours;
   cv::findContours(canny_output, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
   cv::Mat drawing = cv::Mat::zeros( canny_output.size() , CV_8UC3 );
-  tcp =  toolCenterPoint2(contours,step_min);
-  cv::circle(drawing, tcp , 5, cv::Scalar( 255, 255, 255 ),-2,8,0);
+  //tcp =  toolCenterPoint2(contours,step_min);
+  //tcp =  toolCenterPoint2(contours,4);
+  tcp= toolCenterPoint2(contours,5);
+  cv::circle(drawing, tcp , 8, cv::Scalar( 255, 255, 255 ),-2,8,0);
   //cv::circle(drawing, toolCenterPoint1(contours), 5, cv::Scalar( 255, 255, 255 ),-2,8,0);
 
   std::vector<std::vector<cv::Point>>  hull( contours.size() );
@@ -375,9 +386,10 @@ void convexHull(int, void*)
   }
   cv::imshow( window_nameCH, drawing );
 
+
+ //cv::imwrite("/home/ulzea/RESULTS/worm/frame_ "+std::to_string(k)+ ".png", drawing);
+  //k++;
 }
-
-
 /*void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 {
   try
@@ -418,29 +430,33 @@ class SubscribeAndPublish
 {
 
 private:
-  ros::NodeHandle p;
+
   package1::vectorOfPoints points1;
-  geometry_msgs::Point tcp_msg;
+  //geometry_msgs::Point tcp_msg;
+
   std::vector<geometry_msgs::Point> geomvec;
 
 
 
 public:
-  rviz_visual_tools::RvizVisualToolsPtr visual_tools;
+  //rviz_visual_tools::RvizVisualToolsPtr visual_tools;
+    //rviz_visual_tools::RvizVisualToolsPtr tcp_visual_tools;
   void imageCallback(const sensor_msgs::ImageConstPtr& msg)
   {
     try
     {
       cv::normalize(cv_bridge::toCvShare(msg, "bgr8")->image , normal,0,255,cv::NORM_MINMAX,-1,cv::Mat());
+
+      //if (snap == true) cv::imwrite("/home/ulzea/RESULTS/originalimage.png", normal); snap= false;
       //cv::medianBlur(normal,blur,3);
       //cv::GaussianBlur( normal, normal, cv::Size(9,9), 0, 0, cv::BORDER_DEFAULT );
       cv::cvtColor(normal, gray , cv::COLOR_RGB2GRAY);
-
+      //if (snap == true) cv::imwrite("/home/ulzea/RESULTS/blackandwhiteimage.png", gray); snap= false;
       canny = gray;
       cv::blur(canny, canny, cv::Size(5,5));
       convexHull(0,0);
       binarize(0,0);
-      //cv::imshow("gray", gray);
+      cv::imshow("gray", gray);
       frame2 = skeletonize(gray);
 
       //cv::imshow("convexHull", frame2);
@@ -457,27 +473,28 @@ public:
           point.y = (*it).y;
           point.z = 0;
           geomvec.push_back(point);
-
-
           msg.points.push_back(point);
           //std::cout << "x_0 coordinate: " << msg.points[0].x<< "             y_0 coordinate: " << msg.points[0].y << std::endl;
       }
       points1 = msg;
+      std:: cout<< "tcpmsg2" << tcp.x<< std::endl;
+      points1.tcp.x =tcp.x;
+      points1.tcp.y =tcp.y;
+      points1.tcp.z = 0;
 
-      tcp_msg.x =tcp.x;
-      tcp_msg.y =tcp.y;
-      tcp_msg.z = 0;
-
-      //definition of visualization_msgs
-      std::cout<< "blabla"<< tcp.x<< std::endl;
-      visual_tools->publishSpheres(geomvec, rviz_visual_tools::BLUE , rviz_visual_tools::XXXLARGE   , "Spheres");
-      visual_tools->trigger();
-      //visual_tools->publishSpheres(tcp_msg, rviz_visual_tools::BLUE , rviz_visual_tools::XXXLARGE   , "Spheres");
-      //visual_tools->publishSphere(tcp_msg, rviz_visual_tools::BLUE , rviz_visual_tools::MEDIUM   , "Sphere" ,0);
+      Eigen::Vector3d test(0.0, 0.0, 0.0);
+        //tcp_visual_tools->deleteAllMarkers();
+      //visual_tools->deleteAllMarkers();
+        //definition of visualization_msgs
+        //std::cout<< "blabla"<< tcp.x<< std::endl;
+      //visual_tools->publishSpheres(geomvec, rviz_visual_tools::RED , rviz_visual_tools::XXXXLARGE   , "Spheres");
       //visual_tools->trigger();
-      visual_tools->deleteAllMarkers();
-      geomvec.clear();
+        //visual_tools->publishSpheres(tcp_msg, rviz_visual_tools::BLUE , rviz_visual_tools::XXXLARGE   , "Spheres");
+        //visual_tools->publishSphere(test, rviz_visual_tools::BLUE , rviz_visual_tools::XXXLARGE );
+        //visual_tools->trigger();
 
+      geomvec.clear();
+      vect.clear();
 
 
     }
@@ -506,7 +523,8 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
   ros::Publisher pub = nh.advertise<package1::vectorOfPoints>("SkeletonPoints", 1);
   ros::Publisher marker_pub = nh.advertise<visualization_msgs::Marker>("SkeletonPointsrviz", 10);
-  ros::Rate loop_rate(30);
+  ros::Rate loop_rate(10);
+
 
 
 
@@ -521,29 +539,26 @@ int main(int argc, char **argv)
 
   image_transport::ImageTransport it(nh);
   SubscribeAndPublish listener;
-  image_transport::Subscriber sub = it.subscribe("camera/image_raw", 1, &SubscribeAndPublish::imageCallback, &listener);
-  listener.visual_tools.reset(new rviz_visual_tools::RvizVisualTools("world", "/rvizskel"));
+  //image_transport::Subscriber sub = it.subscribe("camera/image_raw", 1, &SubscribeAndPublish::imageCallback, &listener);
+  image_transport::Subscriber sub = it.subscribe("rpicam_left/image", 1, &SubscribeAndPublish::imageCallback, &listener);
+  //listener.visual_tools.reset(new rviz_visual_tools::RvizVisualTools("world", "/rvizskel"));
+      //listener.tcp_visual_tools.reset(new rviz_visual_tools::RvizVisualTools("world", "/rviztcp"));
+  //listener.visual_tools->loadMarkerPub();
+      //listener.tcp_visual_tools->loadMarkerPub();
+  //listener.visual_tools->deleteAllMarkers();
+      //listener.tcp_visual_tools->deleteAllMarkers();
 
-  listener.visual_tools->loadMarkerPub();
+  //listener.visual_tools->trigger();
+      // listener.tcp_visual_tools->trigger();
 
-  listener.visual_tools->deleteAllMarkers();
-  listener.visual_tools->trigger();
-
-
-  //ros::Publisher pub = nh.advertise<package1::vectorOfPoints>("SkeletonPoints", 1);
-  //ros::Rate loop_rate(0.5);
-  // the message to be published
-   //package1::vectorOfPoints msg;
 
    while (ros::ok())
      {
 
 
-   listener.imagePublisher(&pub);
+      listener.imagePublisher(&pub);
 
-
-
-    ros::spinOnce();
+      ros::spinOnce();
 
 
    }
@@ -551,4 +566,5 @@ int main(int argc, char **argv)
   ros::spin();
 
   cv::destroyWindow(window_name);
+  cv::destroyWindow(window_nameCH);
 }

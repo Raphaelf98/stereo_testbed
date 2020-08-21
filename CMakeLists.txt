@@ -23,6 +23,7 @@ find_package(Eigen REQUIRED)
 add_message_files(
     FILES
     vectorOfPoints.msg
+    cameraTransformation.msg
     )
 
 generate_messages(
@@ -67,14 +68,20 @@ add_dependencies(camera_pub ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTE
   add_dependencies(tcptracker ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
    target_link_libraries(tcptracker ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
-
+   add_executable(extrinsicCalibration src/extrinsicCalibration.cpp)
+   add_dependencies(extrinsicCalibration ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
+    target_link_libraries(extrinsicCalibration ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
   add_executable(skeleton src/skeleton.cpp src/alglibinternal.cpp
       src/linalg.cpp src/statistics.cpp src/optimization.cpp src/specialfunctions.cpp src/solvers.cpp
       src/interpolation.cpp src/ap.cpp src/alglibmisc.cpp src/dataanalysis.cpp
       src/fasttransforms.cpp src/integration.cpp)
+
   add_dependencies(skeleton ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
    target_link_libraries(skeleton ${OpenCV_LIBRARIES} ${catkin_LIBRARIES} ${Eigen_INCLUDE_DIRS})
+
+   add_dependencies(extrinsicCalibration ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
+    target_link_libraries(extrinsicCalibration ${OpenCV_LIBRARIES} ${catkin_LIBRARIES} ${Eigen_INCLUDE_DIRS})
 
    add_executable( interpolator src/interpolator.cpp src/alglibinternal.cpp src/linalg.cpp src/statistics.cpp src/optimization.cpp
        src/specialfunctions.cpp src/solvers.cpp src/interpolation.cpp src/ap.cpp
@@ -92,7 +99,7 @@ add_dependencies(camera_pub ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTE
       DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
     )
 
-  install(TARGETS camera_pub camera_sub skeleton # interpolator
+  install(TARGETS camera_pub camera_sub skeleton extrinsicCalibration # interpolator
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

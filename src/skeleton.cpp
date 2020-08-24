@@ -1,14 +1,18 @@
-#include <ros/ros.h>
+﻿#include <ros/ros.h>
 #include <image_transport/image_transport.h>
 #include <opencv2/highgui/highgui.hpp>
+#include<opencv2/calib3d.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/core.hpp>
+#include<opencv2/core/operations.hpp>
 #include<math.h>
 #include <vector>
-
+#include<Eigen/Dense>
 #include<geometry_msgs/Point.h>
 #include<visualization_msgs/Marker.h>
 #include<package1/vectorOfPoints.h>
+#include<package1/cameraTransformation.h>
+#include<sensor_msgs/PointCloud2.h>
 #include<rviz_visual_tools/rviz_visual_tools.h>
 
 
@@ -323,7 +327,7 @@ for( int j= 0; j < vecContourPoints.size(); j++ )
 
   int maxElementIndex = std::max_element(vecCurvature.begin(), vecCurvature.end())- vecCurvature.begin();
   //return the amount of curvature vectors found
-  std::cout << vecCurvaturePosition[maxElementIndex]<<std::endl;
+  //std::cout << vecCurvaturePosition[maxElementIndex]<<std::endl;
 
   TCP =  vecCurvaturePosition[maxElementIndex];
 
@@ -332,26 +336,6 @@ for( int j= 0; j < vecContourPoints.size(); j++ )
 }
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 void convexHull(int, void*)
 {
@@ -435,12 +419,66 @@ private:
   //geometry_msgs::Point tcp_msg;
 
   std::vector<geometry_msgs::Point> geomvec;
+  geometry_msgs::Point PointXYZ;
+  std::vector<Point> SkeletonVect;
+  std::vector<geometry_msgs::Point> SpatialSkeleton;
 
-
-
+  cv::Mat RotationMatrix;
+  cv::Mat InvertedRotation;
+  std::vector<float> rot = {0,0,0};
+  cv::Vec3f translation;
+  bool transformSet = false;
 public:
   //rviz_visual_tools::RvizVisualToolsPtr visual_tools;
     //rviz_visual_tools::RvizVisualToolsPtr tcp_visual_tools;
+
+  void extrinsicParameterCallback(const package1::cameraTransformation::ConstPtr& parameter_msg)
+  {
+    if (transformSet)return;
+    translation[0]= parameter_msg->tvec.x;
+    translation[1]= parameter_msg->tvec.y;
+    translation[2]= parameter_msg->tvec.z;
+
+    rot[0] = parameter_msg->rvec.x;
+    rot[1] = parameter_msg->rvec.y;
+    rot[2] = parameter_msg->rvec.z;
+    transformSet=true;
+    std::cout<<"received extrinsic parameters"<<std::endl;
+  }
+
+  void rigidBodyTransform(geometry_msgs::Point inputPoint , geometry_msgs::Point &transformedPoint )
+  {
+    cv::Vec3f input;
+    if (std::isnan(inputPoint.x))
+    {
+      std::cout<<"no information" << std::endl;
+      inputPoint.x = 0;
+      inputPoint.y = 0;
+      inputPoint.z = 0;
+    }
+    input[0]= inputPoint.x;
+    input[1]= inputPoint.y;
+    input[2]= inputPoint.z;
+
+    cv::Vec3f subs;
+
+    cv::Rodrigues(rot,RotationMatrix);
+
+    //InvertedRotation = RotationMatrix.inv();
+    cv::transpose(RotationMatrix,InvertedRotation);
+
+    cv::subtract(input, translation,subs);
+
+
+    cv::Mat output = InvertedRotation*cv::Mat(subs);
+
+
+    transformedPoint.x = output.at<float>(0);
+    transformedPoint.y = output.at<float>(1);
+    transformedPoint.z = output.at<float>(2);
+
+  }
+
   void imageCallback(const sensor_msgs::ImageConstPtr& msg)
   {
     try
@@ -463,10 +501,11 @@ public:
       cv::imshow("normal",normal);
       cv::waitKey(10);
 
-      std::vector<Point> vect = convertToROSMsg(frame2);
+      SkeletonVect = convertToROSMsg(frame2);
+      /*
       package1::vectorOfPoints msg;
 
-      for (std::vector<Point>::iterator it = vect.begin(); it != vect.end(); ++it)
+      for (std::vector<Point>::iterator it = SkeletonVect.begin(); it != SkeletonVect.end(); ++it)
       {   //std::cout << "x_0 coordinate: " << (*it).x ;
           geometry_msgs::Point point;
           point.x = (*it).x;
@@ -477,7 +516,7 @@ public:
           //std::cout << "x_0 coordinate: " << msg.points[0].x<< "             y_0 coordinate: " << msg.points[0].y << std::endl;
       }
       points1 = msg;
-      std:: cout<< "tcpmsg2" << tcp.x<< std::endl;
+
       points1.tcp.x =tcp.x;
       points1.tcp.y =tcp.y;
       points1.tcp.z = 0;
@@ -494,8 +533,8 @@ public:
         //visual_tools->trigger();
 
       geomvec.clear();
-      vect.clear();
-
+      SkeletonVect.clear();
+      */
 
     }
 
@@ -505,9 +544,66 @@ public:
     }
 
   }
-
-  void imagePublisher(ros::Publisher* pub)
+  void point2CloudCallback(const sensor_msgs::PointCloud2Ptr& pCloud_msg)
   {
+    std::cout<< "tcp 2D [p]: ["<< tcp.x<<","<<tcp.y<<"]"<<std::endl;
+    pixelTo3DPoint(*pCloud_msg, tcp.x, tcp.y , points1.tcp);
+    std::cout<< "tcp 3D [m]: ["<< points1.tcp.x<<","<< points1.tcp.y<<","<< points1.tcp.z<<"]"<<std::endl;
+    for (int iter = 0; iter < SkeletonVect.size(); iter++)
+    {
+      geometry_msgs::Point buff;
+      int u = SkeletonVect[iter].x;
+      int v = SkeletonVect[iter].y;
+
+      pixelTo3DPoint(*pCloud_msg, u, v, buff);
+      SpatialSkeleton.push_back(buff);
+      //SpatialSkeleton[iter].x = buff.x;
+      //SpatialSkeleton[iter].y = buff.y;
+      //SpatialSkeleton[iter].z = buff.z;
+    }
+     points1.points = SpatialSkeleton;
+    SpatialSkeleton.clear();
+  }
+
+  void pixelTo3DPoint(const sensor_msgs::PointCloud2 pCloud, const double u, const double v, geometry_msgs::Point &p)
+  {
+    // get width and height of 2D point cloud data
+          int width = pCloud.width;
+          int height = pCloud.height;
+
+          // Convert from u (column / width), v (row/height) to position in array
+          // where X,Y,Z data starts
+          int arrayPosition = v*pCloud.row_step + u*pCloud.point_step;
+
+          // compute position in array where x,y,z data start
+          int arrayPosX = arrayPosition + pCloud.fields[0].offset; // X has an offset of 0
+          int arrayPosY = arrayPosition + pCloud.fields[1].offset; // Y has an offset of 4
+          int arrayPosZ = arrayPosition + pCloud.fields[2].offset; // Z has an offset of 8
+
+          float X = 0.0;
+          float Y = 0.0;
+          float Z = 0.0;
+
+          memcpy(&X, &pCloud.data[arrayPosX], sizeof(float));
+          memcpy(&Y, &pCloud.data[arrayPosY], sizeof(float));
+          memcpy(&Z, &pCloud.data[arrayPosZ], sizeof(float));
+
+         // put data into the point p
+
+          //p.x = X;
+          //p.y = Y;
+          //p.z = Z;
+
+          geometry_msgs::Point input;
+          input.x = X;
+          input.y = Y;
+          input.z = Z;
+          rigidBodyTransform(input,p);
+
+}
+  void POIPublisher(ros::Publisher* pub)
+  {
+
 
     pub->publish(points1);
 
@@ -519,11 +615,14 @@ public:
 
 int main(int argc, char **argv)
 {
+  bool extrinsicCalibration = false;
   ros::init(argc, argv, "skeleton");
   ros::NodeHandle nh;
   ros::Publisher pub = nh.advertise<package1::vectorOfPoints>("SkeletonPoints", 1);
-  ros::Publisher marker_pub = nh.advertise<visualization_msgs::Marker>("SkeletonPointsrviz", 10);
+  //ros::Publisher marker_pub = nh.advertise<visualization_msgs::Marker>("SkeletonPointsrviz", 10);
   ros::Rate loop_rate(10);
+  SubscribeAndPublish listener;
+
 
 
 
@@ -538,9 +637,14 @@ int main(int argc, char **argv)
   cv::startWindowThread();
 
   image_transport::ImageTransport it(nh);
-  SubscribeAndPublish listener;
+
+
+
+  ros::Subscriber extrinsicParameter = nh.subscribe("/CameraTransform", 1, &SubscribeAndPublish::extrinsicParameterCallback, &listener);
   //image_transport::Subscriber sub = it.subscribe("camera/image_raw", 1, &SubscribeAndPublish::imageCallback, &listener);
-  image_transport::Subscriber sub = it.subscribe("rpicam_left/image", 1, &SubscribeAndPublish::imageCallback, &listener);
+  image_transport::Subscriber sub = it.subscribe("/stereo/left/image_rect", 10, &SubscribeAndPublish::imageCallback, &listener);
+  ros::Subscriber sub2 = nh.subscribe("stereo/points2",10,&SubscribeAndPublish::point2CloudCallback, &listener);
+
   //listener.visual_tools.reset(new rviz_visual_tools::RvizVisualTools("world", "/rvizskel"));
       //listener.tcp_visual_tools.reset(new rviz_visual_tools::RvizVisualTools("world", "/rviztcp"));
   //listener.visual_tools->loadMarkerPub();
@@ -556,14 +660,14 @@ int main(int argc, char **argv)
      {
 
 
-      listener.imagePublisher(&pub);
+      listener.POIPublisher(&pub);
 
       ros::spinOnce();
 
-
    }
 
-  ros::spin();
+
+  //ros::spin();
 
   cv::destroyWindow(window_name);
   cv::destroyWindow(window_nameCH);

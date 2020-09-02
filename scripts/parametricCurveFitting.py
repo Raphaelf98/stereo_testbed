@@ -22,40 +22,53 @@ sorted_index = []
 def callback(msg):
     global i, millis, tcp_sensivity
     global sorted_index
-    if(i % 4) ==0:
+    #condition for online graphing
+    #if(i % 4) ==0:
+    #single execution for testing
+    if(i) < 2:
          milliseconds = int(time() * 1000)
          fps = 1/((milliseconds-millis)/1000)
          millis = milliseconds
-         plt.xlabel('x')
-         plt.ylabel('y')
-         plt.ylim((-0.5,0.5))
-         plt.xlim((0,0.5))
-         plt.title('polynomial fitting', dict(size=15))
-         plt.text(40,400, round(fps) , dict(size=10))
-         plt.text(10,400, 'fps: ', dict(size=10))
-         plt.text(200,1000, 'contour points: ' , dict(size=10))
-         plt.text(310,1000, len(msg.points), dict(size=10))
+         #plt.xlabel('x')
+         #plt.ylabel('y')
+         #plt.ylim((-0.5,0.5))
+         #plt.xlim((0,0.5))
+         #plt.title('polynomial fitting', dict(size=15))
+         #plt.text(40,400, round(fps) , dict(size=10))
+         #plt.text(10,400, 'fps: ', dict(size=10))
+         #plt.text(200,1000, 'contour points: ' , dict(size=10))
+         #plt.text(310,1000, len(msg.points), dict(size=10))
          #plt.text(600,1000, 'polynomial degree: 7', dict(size=10))
          x_data =[]
          y_data =[]
          z_data =[]
-         neighbourhoodDistancethreshold =  math.sqrt(2)
+         neighbourhoodDistancethreshold =  0.015 #math.sqrt(2)
          x_data_sorted=[]
          y_data_sorted=[]
-
+         z_data_sorted=[]
          x_data_test = np.array([600,500,600,100,500,600])
          y_data_test = np.array([100,400,600,600,400,100])
          for t in range (0,len(msg.points)):
 
              x_data.append(msg.points[t].x)
              y_data.append(msg.points[t].y)
-
              z_data.append(msg.points[t].z)
          #plt.plot(x_vals,y_vals, 'ro' ,markersize=2)
-         print("x0val: ", x_data[0],"   y0val: ", y_data[0] , " z0val:" , z_data[0], "   size of skel. Array: ", len(msg.points) )
+         #if
+         #print("x0val: ", x_data[0],"   y0val: ", y_data[0] , " z0val:" , z_data[0], "   size of skel. Array: ", len(msg.points) )
+         print("size of data containers: " , "x: ", len(x_data) , "   y: ", len(y_data), "z: ", len(z_data) )
+         print("data last index: " , "x: ", x_data[len(x_data)-1] , "   y: ", y_data[len(y_data)-1], "z: ", z_data[len(z_data)-1] )
          #fit polynomial of degree n
-         data = np.array([x_data,y_data])
-         print('data: ' ,data[1][0])
+         print('x vals',     x_data)
+
+         #data = np.array([x_data,y_data])
+         data = np.array([x_data,y_data,z_data])
+
+         #method finds index of lowest x-value
+         def startingPoint(values):
+             minElementIndex = np.where(values == np.amin(values))
+             print('start coordinates: ' ,minElementIndex)
+             return minElementIndex[0][0]
 
          def sort_dots(metrics, start):
 
@@ -72,31 +85,39 @@ def callback(msg):
                  candidate = list(points_index)
                  nneigbour = candidate[dist_m[target, candidate].argmin()]
 
-                 if dist_m[target, nneigbour] <= neighbourhoodDistancethreshold:
-                        sorted_index.append(target)
-                 points_index.discard(nneigbour)
-                 points_index.discard(target)
+                 if (dist_m[target, nneigbour] <= neighbourhoodDistancethreshold):
+
+                       sorted_index.append(target)
+
+                       points_index.discard(nneigbour)
+                       points_index.discard(target)
                  #print points_index, target, nneigbour
                  #print ('distance: ' ,dist_m[target, nneigbour])
 
-                 target = nneigbour
+                       target = nneigbour
+                 else:
 
-             print('sorted_index: ', len(sorted_index))
+                      break
+
+             print('length sorted indeces: ', len(sorted_index))
              print('sorted_index: ',sorted_index)
+
              for s in range( 0,len(sorted_index)):
 
                  x_data_sorted.append(data[0,sorted_index[s]])
                  y_data_sorted.append(data[1,sorted_index[s]])
+                 z_data_sorted.append(data[2,sorted_index[s]])
 
-
-         sort_dots('euclidean',0)
-
+         sort_dots('euclidean',startingPoint(x_data))
+         print('zdata:' , z_data_sorted)
+         print('xdata:' , x_data_sorted)
+         print('ydata:' , y_data_sorted)
          def chordLength():
              length = 0
              chordlength= 0
              chordpoints = np.array([x_data_sorted,y_data_sorted])
 
-             dist_m1 = ss.distance.squareform(ss.distance.pdist(chordpoints.T, 'cityblock'))
+             dist_m1 = ss.distance.squareform(ss.distance.pdist(chordpoints.T, 'euclidean'))
              print('lenxdata' , len(x_data_sorted))
              for c in range ( 0 , len(x_data_sorted)-1):
                  chordlength +=  dist_m1[c,c+1]
@@ -108,6 +129,7 @@ def callback(msg):
              return chordlength
 
          def polynomialFitting(x_vals,y_vals,z_vals):
+
              n_xy=10
              n_xz=5
              p_xy = np.poly1d(np.polyfit(x_vals, y_vals, n_xy))
@@ -146,6 +168,7 @@ def callback(msg):
 
 
          def polynomialFittingParametric(x_vals, y_vals):
+
              chordlength_ = chordLength()
              print('chordlength: ', chordlength_)
              t =  np.linspace(0, chordlength_ , len(x_vals), endpoint=True)
@@ -166,6 +189,7 @@ def callback(msg):
              plt.plot(x_vals, y_vals,'o',markersize=2)
              plt.plot( xi , yi )
          def spatialPolynomialFittingParametric(x_vals, y_vals, z_vals):
+
              plt.rcParams['legend.fontsize'] = 10
              fig = plt.figure()
              ax = fig.gca(projection='3d')
@@ -173,29 +197,32 @@ def callback(msg):
              chordlength_ = chordLength()
              print('chordlength: ', chordlength_)
              t =  np.linspace(0, chordlength_ , len(x_vals), endpoint=True)
-             x_params = np.polyfit(t , x_vals , 15)
-             y_params = np.polyfit(t , y_vals , 15)
-             z_params = np.polyfit(t, z_vals  ,15)
+             x_params = np.polyfit( t , x_vals , 10)
+             y_params = np.polyfit( t , y_vals , 10)
+             z_params = np.polyfit( t , z_vals , 10)
              x = np.poly1d(x_params)
              y = np.poly1d(y_params)
              z = np.poly1d(z_params)
-             t_ = np.arange( 0, chordlength_ , 0.01)
-             ax.plot(x_vals, y_vals,z_vals,'o',markersize=2)
+             t_ = np.arange( 0, chordlength_ , 0.001)
+             ax.plot( x_vals, y_vals , z_vals,'o', markersize=2)
              ax.plot( x(t_) , y(t_), z(t_) )
+             plt.show()
+         #polynomialFitting(x_data, y_data, z_data)
          #polynomialFittingParametric(x_data_sorted,y_data_sorted)
          #splineFittingParametric(x_data_sorted,y_data_sorted)
          #closedFormInterpolatation(x_data, y_data)
-         spatialPolynomialFittingParametric(x_data,y_data,z_data)
-         plt.draw()
+         spatialPolynomialFittingParametric( x_data_sorted, y_data_sorted , z_data_sorted)
+         #plt.draw()
 
-         plt.pause(0.0001)
-         plt.clf()
+         #plt.pause(0.0001)
+         #plt.clf()
          x_data.clear()
          y_data.clear()
-
+         z_data.clear()
     else:
          print("pause")
     i+=1
+
 
 
 

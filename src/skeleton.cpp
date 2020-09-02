@@ -73,8 +73,8 @@ struct Point
 
 void binarize(int, void*)
 {
-  //cv::threshold(gray,gray,threshold_value, max_BINARY_value, 1);
-   cv::threshold(gray,gray,70, max_BINARY_value, 1);
+  cv::threshold(gray,gray,threshold_value, max_BINARY_value, 1);
+   //cv::threshold(gray,gray,70, max_BINARY_value, 1);
 }
 
 
@@ -138,8 +138,8 @@ cv::Mat skeletonize(cv::Mat frame)
   //cv::Mat temp(frame.size(), CV_8UC1);
   cv::Mat temp;
   cv::Mat eroded;
-  cv::Mat element = cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3, 3));
-  cv::Mat element1= cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(1,1));
+  cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+  cv::Mat element1= cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3,3));
 // source: http://felix.abecassis.me/2011/09/opencv-morphological-skeleton/
 
 
@@ -176,10 +176,10 @@ cv::Mat skeletonize(cv::Mat frame)
    //snap = false;
 
 
+cv::dilate(skel,skel,element);
 
+cv::erode(skel, skel, element);
 
-
-cv::erode(skel, skel, element1);
 //cv::dilate(skel,skel,element1);
 cv::imshow("skeleton", skel);
 
@@ -350,7 +350,7 @@ void convexHull(int, void*)
   cv::Mat drawing = cv::Mat::zeros( canny_output.size() , CV_8UC3 );
   //tcp =  toolCenterPoint2(contours,step_min);
   //tcp =  toolCenterPoint2(contours,4);
-  tcp= toolCenterPoint2(contours,5);
+ // tcp= toolCenterPoint2(contours,5);
   cv::circle(drawing, tcp , 8, cv::Scalar( 255, 255, 255 ),-2,8,0);
   //cv::circle(drawing, toolCenterPoint1(contours), 5, cv::Scalar( 255, 255, 255 ),-2,8,0);
 
@@ -374,6 +374,11 @@ void convexHull(int, void*)
  //cv::imwrite("/home/ulzea/RESULTS/worm/frame_ "+std::to_string(k)+ ".png", drawing);
   //k++;
 }
+
+
+
+
+
 /*void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 {
   try
@@ -410,6 +415,15 @@ void convexHull(int, void*)
   }
 }*/
 
+
+
+
+
+
+
+
+
+
 class SubscribeAndPublish
 {
 
@@ -428,6 +442,8 @@ private:
   std::vector<float> rot = {0,0,0};
   cv::Vec3f translation;
   bool transformSet = false;
+  geometry_msgs::Point circle;
+  geometry_msgs::Point circle3D;
 public:
   //rviz_visual_tools::RvizVisualToolsPtr visual_tools;
     //rviz_visual_tools::RvizVisualToolsPtr tcp_visual_tools;
@@ -452,9 +468,9 @@ public:
     if (std::isnan(inputPoint.x))
     {
       std::cout<<"no information" << std::endl;
-      inputPoint.x = 0;
-      inputPoint.y = 0;
-      inputPoint.z = 0;
+      inputPoint.x =1000;
+      inputPoint.y =1000;
+      inputPoint.z =1000;
     }
     input[0]= inputPoint.x;
     input[1]= inputPoint.y;
@@ -484,11 +500,12 @@ public:
     try
     {
       cv::normalize(cv_bridge::toCvShare(msg, "bgr8")->image , normal,0,255,cv::NORM_MINMAX,-1,cv::Mat());
-
-      //if (snap == true) cv::imwrite("/home/ulzea/RESULTS/originalimage.png", normal); snap= false;
+      spatialPointTest(normal);
+      if (snap == true) cv::imwrite("/home/ulzea/RESULTS/thinwire.png", normal); snap= false;
       //cv::medianBlur(normal,blur,3);
       //cv::GaussianBlur( normal, normal, cv::Size(9,9), 0, 0, cv::BORDER_DEFAULT );
       cv::cvtColor(normal, gray , cv::COLOR_RGB2GRAY);
+
       //if (snap == true) cv::imwrite("/home/ulzea/RESULTS/blackandwhiteimage.png", gray); snap= false;
       canny = gray;
       cv::blur(canny, canny, cv::Size(5,5));
@@ -545,9 +562,12 @@ public:
 
   }
   void point2CloudCallback(const sensor_msgs::PointCloud2Ptr& pCloud_msg)
-  {
+  { std::cout<< "circle: ["<< circle.x<<","<<circle.y<<"]"<<std::endl;
+    pixelTo3DPoint(*pCloud_msg, circle.x,circle.y,circle3D);
+
+    std::cout<< "circle3D: ["<< circle3D.x<<","<<circle3D.y<<","<<circle3D.z<<"]"<<std::endl;
     std::cout<< "tcp 2D [p]: ["<< tcp.x<<","<<tcp.y<<"]"<<std::endl;
-    pixelTo3DPoint(*pCloud_msg, tcp.x, tcp.y , points1.tcp);
+    //pixelTo3DPoint(*pCloud_msg, tcp.x, tcp.y , points1.tcp);
     std::cout<< "tcp 3D [m]: ["<< points1.tcp.x<<","<< points1.tcp.y<<","<< points1.tcp.z<<"]"<<std::endl;
     for (int iter = 0; iter < SkeletonVect.size(); iter++)
     {
@@ -556,7 +576,10 @@ public:
       int v = SkeletonVect[iter].y;
 
       pixelTo3DPoint(*pCloud_msg, u, v, buff);
+      if(buff.x != 1000 &buff.y != 1000 &buff.z != 1000)
+      {
       SpatialSkeleton.push_back(buff);
+      }
       //SpatialSkeleton[iter].x = buff.x;
       //SpatialSkeleton[iter].y = buff.y;
       //SpatialSkeleton[iter].z = buff.z;
@@ -580,9 +603,9 @@ public:
           int arrayPosY = arrayPosition + pCloud.fields[1].offset; // Y has an offset of 4
           int arrayPosZ = arrayPosition + pCloud.fields[2].offset; // Z has an offset of 8
 
-          float X = 0.0;
-          float Y = 0.0;
-          float Z = 0.0;
+          float X=0.0;
+          float Y=0.0;
+          float Z=0.0;
 
           memcpy(&X, &pCloud.data[arrayPosX], sizeof(float));
           memcpy(&Y, &pCloud.data[arrayPosY], sizeof(float));
@@ -594,13 +617,47 @@ public:
           //p.y = Y;
           //p.z = Z;
 
-          geometry_msgs::Point input;
-          input.x = X;
-          input.y = Y;
-          input.z = Z;
-          rigidBodyTransform(input,p);
+          geometry_msgs::Point input_;
+
+          input_.x = X;
+          input_.y = Y;
+          input_.z = Z;
+          rigidBodyTransform(input_,p);
 
 }
+  void spatialPointTest(cv::Mat frme)
+  {
+    cv::Mat  image;
+    cv::cvtColor(frme, image , cv::COLOR_RGB2GRAY);
+
+    std::vector<cv::Vec3f> circles;
+
+    GaussianBlur(image, image, cv::Size(9, 9), 2, 2 );
+    HoughCircles(image, circles, CV_HOUGH_GRADIENT, 1, image.rows/8, 200, 100, 0, 0 );
+    for( size_t i = 0; i < circles.size(); i++ )
+      {
+          cv::Point center(cvRound(circles[i][0]), cvRound(circles[i][1]));
+          int radius = cvRound(circles[i][2]);
+          // circle center
+          cv::circle( frme, center, 3, cv::Scalar(0,255,0), -1, 8, 0 );
+          // circle outline
+          cv::circle( frme, center, radius, cv::Scalar(0,0,255), 3, 8, 0 );
+       }
+    if (circles.size()>0)
+    {
+    circle.x = round( circles[0][0]);
+    circle.y = round(circles[0][1]);
+
+    cv::putText(frme, "Coordinates: x:"+ std::to_string(circle3D.x) +"  y:" +std::to_string(circle3D.y)+"  z:" + std::to_string(circle3D.z), cv::Point(10,50), cv::FONT_HERSHEY_SIMPLEX, 0.5,CV_RGB(0,255,255),2);
+    }
+    //
+    cv::namedWindow( "Hough Circle Transform Demo", cv::WINDOW_AUTOSIZE );
+    imshow( "Hough Circle Transform Demo", frme );
+    circles.clear();
+  }
+
+
+
   void POIPublisher(ros::Publisher* pub)
   {
 

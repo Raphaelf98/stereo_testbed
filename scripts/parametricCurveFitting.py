@@ -11,21 +11,28 @@ from scipy.interpolate import UnivariateSpline
 from scipy.interpolate import BSpline
 from scipy import interpolate
 import matplotlib.pyplot as plt
+
 import scipy.spatial as ss
 from scipy.stats import linregress
 from time import time
 import math
+import csv
+import PySimpleGUI as sg
+
 i=1
 millis= 0
 tcp_sensivity = 50
 sorted_index = []
+
 def callback(msg):
     global i, millis, tcp_sensivity
     global sorted_index
+
     #condition for online graphing
     #if(i % 4) ==0:
     #single execution for testing
     if(i) < 2:
+
          milliseconds = int(time() * 1000)
          fps = 1/((milliseconds-millis)/1000)
          millis = milliseconds
@@ -39,46 +46,105 @@ def callback(msg):
          #plt.text(200,1000, 'contour points: ' , dict(size=10))
          #plt.text(310,1000, len(msg.points), dict(size=10))
          #plt.text(600,1000, 'polynomial degree: 7', dict(size=10))
+         plt.rcParams['legend.fontsize'] = 10
+         fig = plt.figure()
+         ax = fig.gca(projection='3d')
+         ax.set_xlim(0,0.2)
+         ax.set_ylim(0,0.2)
+         ax.set_zlim(0,0.2)
+         ax.set_xlabel('X-Axis')
+         ax.set_ylabel('Y-Axis')
+         ax.set_zlabel('z-Axis')
          x_data =[]
          y_data =[]
          z_data =[]
-         neighbourhoodDistancethreshold =  0.015 #math.sqrt(2)
+         neighbourhoodDistancethreshold =  0.03 #math.sqrt(2)
+         sampleRate = 25
+         x_samples =[]
+         y_samples =[]
+         z_samples =[]
          x_data_sorted=[]
          y_data_sorted=[]
          z_data_sorted=[]
          x_data_test = np.array([600,500,600,100,500,600])
          y_data_test = np.array([100,400,600,600,400,100])
+         z_data_test = np.array([100,100,100,200,200,200])
+
          for t in range (0,len(msg.points)):
 
              x_data.append(msg.points[t].x)
              y_data.append(msg.points[t].y)
              z_data.append(msg.points[t].z)
-         #plt.plot(x_vals,y_vals, 'ro' ,markersize=2)
-         #if
-         #print("x0val: ", x_data[0],"   y0val: ", y_data[0] , " z0val:" , z_data[0], "   size of skel. Array: ", len(msg.points) )
+            #plt.plot(x_vals,y_vals, 'ro' ,markersize=2)
+            #if
+            #print("x0val: ", x_data[0],"   y0val: ", y_data[0] , " z0val:" , z_data[0], "   size of skel. Array: ", len(msg.points) )
          print("size of data containers: " , "x: ", len(x_data) , "   y: ", len(y_data), "z: ", len(z_data) )
          print("data last index: " , "x: ", x_data[len(x_data)-1] , "   y: ", y_data[len(y_data)-1], "z: ", z_data[len(z_data)-1] )
-         #fit polynomial of degree n
+             #fit polynomial of degree n
          print('x vals',     x_data)
 
-         #data = np.array([x_data,y_data])
+            #data = np.array([x_data,y_data])
          data = np.array([x_data,y_data,z_data])
 
-         #method finds index of lowest x-value
+         #method finds index of lowest x-values
          def startingPoint(values):
              minElementIndex = np.where(values == np.amin(values))
              print('start coordinates: ' ,minElementIndex)
              return minElementIndex[0][0]
 
+
+        #https://www.algorithms-and-technologies.com/dijkstra/python
+         def Dijkstra(metrics, start):
+             Dijkstra_parameter = 0.0015
+             adjacency_matrix = ss.distance.squareform(ss.distance.pdist(data.T, metrics))
+             adjacency_matrix[adjacency_matrix > Dijkstra_parameter] = 0
+             Graph =[]
+             print('adjacency_matrix' , adjacency_matrix[0])
+
+             distances = [float("inf") for _ in range(len( adjacency_matrix))]
+             print('distances: ' , distances)
+             visited = [False for _ in range(len( adjacency_matrix))]
+             distances[start] = 0
+
+             while True:
+
+                 shortest_distance = float("inf")
+                 shortest_index = -1
+
+                 for i in range(len(adjacency_matrix)):
+
+                     if distances[i] < shortest_distance and not visited[i]:
+                         shortest_distance = distances[i]
+                         Graph.append(i)
+                         shortest_index = i
+
+                 if shortest_index == -1:
+                     break
+
+
+                 for i in range(len(adjacency_matrix[shortest_index])):
+
+                     if adjacency_matrix[shortest_index][i] != 0 and distances[i] > distances[shortest_index] + adjacency_matrix[shortest_index][i]:
+                         distances[i] = distances[shortest_index] + adjacency_matrix[shortest_index][i]
+
+                 visited[shortest_index] = True
+
+             for k in range( 0 ,len(Graph)):
+
+                 x_data_sorted.append(data[0,Graph[k]])
+                 y_data_sorted.append(data[1,Graph[k]])
+                 z_data_sorted.append(data[2,Graph[k]])
+             return distances
+
          def sort_dots(metrics, start):
 
              dist_m = ss.distance.squareform(ss.distance.pdist(data.T, metrics))
-
+             print('distm' , dist_m[0])
              total_points = data.shape[1]
              points_index = set(range(total_points))
              sorted_index = []
              target    = start
-             #plot(data[0, target], data[1, target], 'o', markersize=16)
+             ax.plot( [data[0, target]] ,  [data[1, target]], [data[2, target]], 'ro')
 
              points_index.discard(target)
              while len(points_index)>0:
@@ -108,14 +174,45 @@ def callback(msg):
                  y_data_sorted.append(data[1,sorted_index[s]])
                  z_data_sorted.append(data[2,sorted_index[s]])
 
-         sort_dots('euclidean',startingPoint(x_data))
+         def curvatureConstraint(x_sor,y_sor, z_sor):
+             Curv3DList = []
+             posOld_x = 0
+             posOld_y = 0
+             posOld_z = 0
+             posOlder_x=0
+             posOlder_y=0
+             posOlder_z=0
+
+             for s in range(0, len(x_sor)):
+                pos_x = x_sor[s]
+                pos_y = y_sor[s]
+                pos_z = z_sor[s]
+                if (t) == 0 :
+                    posOld_x= posOlder_x=pos_x
+                    posOld_y= posOlder_y=pos_y
+                    posOld_z= posOlder_z=pos_z
+                firstDerivative_x = pos_x - posOld_x
+                firstDerivative_y = pos_y - posOld_y
+                firstDerivative_z = pos_y - posOld_z
+                secondDerivative_x = pos_x - 2.0*posOld_x+posOlder_x
+                secondDerivative_y = pos_y - 2.0*posOld_y+posOlder_y
+                secondDerivative_z = pos_z - 2.0*posOld_z+posOlder_z
+
+
+                curvature3D = math.sqrt( ( math.pow(secondDerivative_z*firstDerivative_y-secondDerivative_y*firstDerivative_z,2) + math.pow(secondDerivative_x*firstDerivative_z-secondDerivative_z*firstDerivative_x,2) + math.pow(secondDerivative_y*firstDerivative_x-secondDerivative_x*firstDerivative_y,2) ) / math.pow(math.pow(firstDerivative_x,2)+math.pow(firstDerivative_y,2)+math.pow(firstDerivative_z,2),3) )
+                Curv3DList.append(curvature3D)
+
+         #sort_dots('euclidean',startingPoint(x_data))
+         print('Disjkstra', Dijkstra('euclidean',startingPoint(x_data)))
+         #curvatureConstraint(x_data_sorted,y_data_sorted,z_data_sorted)
+         #ax.plot([x_data_sorted[ len(x_data_sorted)-1]] , [y_data_sorted[len(y_data_sorted)-1]],[ z_data_sorted[len(z_data_sorted)-1]], 'o')
          print('zdata:' , z_data_sorted)
          print('xdata:' , x_data_sorted)
          print('ydata:' , y_data_sorted)
          def chordLength():
              length = 0
              chordlength= 0
-             chordpoints = np.array([x_data_sorted,y_data_sorted])
+             chordpoints = np.array([x_data_sorted,y_data_sorted,z_data_sorted])
 
              dist_m1 = ss.distance.squareform(ss.distance.pdist(chordpoints.T, 'euclidean'))
              print('lenxdata' , len(x_data_sorted))
@@ -152,9 +249,10 @@ def callback(msg):
              #   plt.plot(msg.tcp.x, msg.tcp.y, marker='o', markersize=5, color="red")
 
 
-         def splineFittingParametric(x_vals, y_vals):
+         def splineFittingParametric(x_vals, y_vals,z_vals):
 
              chordlength_ = chordLength()
+             #chordlength_ = 0.168
              print('chordlength: ', chordlength_)
              t =  np.linspace( 0 , chordlength_ , len(x_vals), endpoint=False)
 
@@ -162,10 +260,12 @@ def callback(msg):
              #y_spline = UnivariateSpline(t, y_vals)
              x_spline = BSpline(t, x_vals,k=2)
              y_spline = BSpline(t, y_vals,k=2)
+             z_spline = BSpline(t, z_vals,k=2)
              t_ = np.arange( 0,chordlength_ , 0.01)
-             plt.plot(x_vals, y_vals,'o',markersize=2)
-             plt.plot(x_spline(t_), y_spline(t_))
+             ax.plot(x_vals, y_vals,z_vals,'o',markersize=2)
 
+             ax.plot(x_spline(t_), y_spline(t_),z_spline(t_))
+             plt.show()
 
          def polynomialFittingParametric(x_vals, y_vals):
 
@@ -176,7 +276,7 @@ def callback(msg):
              y_params = np.polyfit(t , y_vals , 15)
              x = np.poly1d(x_params)
              y = np.poly1d(y_params)
-             t_ = np.arange( 0, chordlength_ , 0.01)
+             t_ = np.arange( 0, chordlength_ , 0.001)
              plt.plot(x_vals, y_vals,'o',markersize=2)
              plt.plot( x(t_) , y(t_) )
 
@@ -189,10 +289,9 @@ def callback(msg):
              plt.plot(x_vals, y_vals,'o',markersize=2)
              plt.plot( xi , yi )
          def spatialPolynomialFittingParametric(x_vals, y_vals, z_vals):
+             t_scl = []
 
-             plt.rcParams['legend.fontsize'] = 10
-             fig = plt.figure()
-             ax = fig.gca(projection='3d')
+
 
              chordlength_ = chordLength()
              print('chordlength: ', chordlength_)
@@ -203,15 +302,48 @@ def callback(msg):
              x = np.poly1d(x_params)
              y = np.poly1d(y_params)
              z = np.poly1d(z_params)
+             #take samples at defined intervalls
+             t_sample = np.arange(0, chordlength_, (chordlength_/sampleRate))
+             t_scl = np.append(t_sample, [chordlength_])
+
+             print('smapl', t_sample)
+             print('smapl + cl', t_scl)
+             for i in range (0, len(t_scl)):
+                   x_samples.append( x(t_scl[i]))
+                   y_samples.append( y(t_scl[i]))
+                   z_samples.append( z(t_scl[i]))
+
+                   print(i,' ','sample', x_samples[i],' ','t: ', t_scl[i])
+             #print( 'x_samples' , x_samples[4])
              t_ = np.arange( 0, chordlength_ , 0.001)
+             sg.theme('DarkAmber')
+             layout = [  [sg.Text('Do you want to save data to CSV file? ')],
+                         [sg.Button('Ok'), sg.Button('Cancel')] ]
+             window = sg.Window('Test writer', layout)
+
+
              ax.plot( x_vals, y_vals , z_vals,'o', markersize=2)
              ax.plot( x(t_) , y(t_), z(t_) )
+
              plt.show()
+             while True:
+
+                 event,values = window.read()
+
+                 if event == sg.WIN_CLOSED or event == 'Cancel':
+                     break
+
+                 if event == 'Ok':
+                     CSVFileCreator(t_scl,x_samples,y_samples,z_samples)
+                     print('Data has been added to CSV file')
+                     break
+             window.close()
          #polynomialFitting(x_data, y_data, z_data)
          #polynomialFittingParametric(x_data_sorted,y_data_sorted)
-         #splineFittingParametric(x_data_sorted,y_data_sorted)
+         #splineFittingParametric(x_data_sorted,y_data_sorted,z_data_sorted)
          #closedFormInterpolatation(x_data, y_data)
          spatialPolynomialFittingParametric( x_data_sorted, y_data_sorted , z_data_sorted)
+         #spatialPolynomialFittingParametric( x_data_test, y_data_test , z_data_test)
          #plt.draw()
 
          #plt.pause(0.0001)
@@ -223,15 +355,24 @@ def callback(msg):
          print("pause")
     i+=1
 
-
-
-
-
-
+def CSVFileCreator(t,x_smpls, y_smlps, z_smpls):
+    rows= [t,x_smpls,y_smlps,z_smpls]
+    row = [t]
+    with open ('/home/ulzea/RESULTS/DataAnalysis/curveFittingSamples.csv' , 'a+') as file:
+         writer = csv.writer(file)
+         #writer.writerow(row)
+         writer.writerows(rows)
+def appendRowToCSV(t,x_smpls, y_smlps, z_smpls):
+    rows= [t,x_smpls,y_smlps,z_smpls]
+    with open('/home/ulzea/RESULTS/DataAnalysis/curveFittingSamples.csv', 'a+', newline = '' ) as file:
+         writer = csv.writer(file)
+         #writer.writerow(row)
+         writer.writerows(rows)
 def listener():
 
     rospy.init_node('listener', anonymous=True)
     rospy.Subscriber('SkeletonPoints', vectorOfPoints, callback, queue_size = 1)
+
     print("hallo")
     rospy.spin()
 

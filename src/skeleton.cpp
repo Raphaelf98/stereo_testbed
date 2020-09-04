@@ -176,9 +176,9 @@ cv::Mat skeletonize(cv::Mat frame)
    //snap = false;
 
 
-cv::dilate(skel,skel,element);
+//cv::dilate(skel,skel,element);
 
-cv::erode(skel, skel, element);
+//cv::erode(skel, skel, element);
 
 //cv::dilate(skel,skel,element1);
 cv::imshow("skeleton", skel);

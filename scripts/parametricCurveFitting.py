@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import rospy
 import numpy as np
+import time
 from numpy.polynomial import polynomial as pl
 from matplotlib.pyplot import *
 from std_msgs.msg import String
@@ -51,7 +52,7 @@ def callback(msg):
          ax = fig.gca(projection='3d')
          ax.set_xlim(0,0.2)
          ax.set_ylim(0,0.2)
-         ax.set_zlim(0,0.2)
+         ax.set_zlim(-0.1,0.1)
          ax.set_xlabel('X-Axis')
          ax.set_ylabel('Y-Axis')
          ax.set_zlabel('z-Axis')
@@ -89,21 +90,28 @@ def callback(msg):
          #method finds index of lowest x-values
          def startingPoint(values):
              minElementIndex = np.where(values == np.amin(values))
-             print('start coordinates: ' ,minElementIndex)
+             print('start coordinates: ' ,minElementIndex[0][0])
              return minElementIndex[0][0]
 
 
         #https://www.algorithms-and-technologies.com/dijkstra/python
          def Dijkstra(metrics, start):
              Dijkstra_parameter = 0.0015
+             Jump_threshold = 0.05
+             min_jump_threshold =0.01
              adjacency_matrix = ss.distance.squareform(ss.distance.pdist(data.T, metrics))
+             adjacency_matrix_full = ss.distance.squareform(ss.distance.pdist(data.T, metrics))
+             adjacency_matrix_full[adjacency_matrix >Jump_threshold] = 0
+             adjacency_matrix_full[adjacency_matrix < min_jump_threshold] = 0
              adjacency_matrix[adjacency_matrix > Dijkstra_parameter] = 0
-             Graph =[]
+             already_visited =[]
+             graph =[]
              print('adjacency_matrix' , adjacency_matrix[0])
 
              distances = [float("inf") for _ in range(len( adjacency_matrix))]
-             print('distances: ' , distances)
+             print('len distances: ' ,len(distances),'distances', distances[500])
              visited = [False for _ in range(len( adjacency_matrix))]
+             parents = [float("inf") for _ in range(len( adjacency_matrix))]
              distances[start] = 0
 
              while True:
@@ -115,27 +123,77 @@ def callback(msg):
 
                      if distances[i] < shortest_distance and not visited[i]:
                          shortest_distance = distances[i]
-                         Graph.append(i)
                          shortest_index = i
-
+                 print('shortest_index ',shortest_index)
+                 print('shortest_distance ',shortest_distance)
                  if shortest_index == -1:
                      break
 
 
                  for i in range(len(adjacency_matrix[shortest_index])):
 
+
                      if adjacency_matrix[shortest_index][i] != 0 and distances[i] > distances[shortest_index] + adjacency_matrix[shortest_index][i]:
                          distances[i] = distances[shortest_index] + adjacency_matrix[shortest_index][i]
+                         graph.append([i,shortest_index])
 
+                         print("Updating distance of node " + str(i) + " to " + str(distances[i]))
+                         #parents[i]=shortest_index
+                 already_visited.append(shortest_index)
                  visited[shortest_index] = True
+             shortest_path =[]
+             shortest_path.append(graph[len(graph)-1][0])
+             pos = graph[len(graph)-1][1]
+             for i in reversed(graph):
+                 if i[0] == pos:
+                     shortest_path.append(i[0])
+                     shortest_path.append(i[1])
+                     pos = i[1]
 
-             for k in range( 0 ,len(Graph)):
+             shortest_path[::-1]
+             flipped_shortest_path = []
 
-                 x_data_sorted.append(data[0,Graph[k]])
-                 y_data_sorted.append(data[1,Graph[k]])
-                 z_data_sorted.append(data[2,Graph[k]])
+             for i in range(0, len(shortest_path)):
+                   flipped_shortest_path.append(shortest_path[len(shortest_path)-i-1])
+
+             print('path',  flipped_shortest_path)
+
+             next_position_list = np.array(adjacency_matrix_full[flipped_shortest_path[-1]])
+             print('position', flipped_shortest_path[-1],'next_position list length  ', len(next_position_list) ,'next_position list ' ,next_position_list)
+             for f in range(0,len(already_visited)):
+                  next_position_list[already_visited[f]] = 0
+             print('position', flipped_shortest_path[-1],'next_position list length  ', len(next_position_list) ,'next_position list ' ,next_position_list)
+             start_= np.where( next_position_list==np.min(next_position_list[np.nonzero(next_position_list)]))
+             print('next start node ', start_[0])
+             ax.plot(data[0,start_[0]],data[1,start_[0]],data[2,start_[0]], 'bo', markersize= 6)
+             #target has to be node index of furthest node from source
+             #target =0
+             #target_list = np.array(distances)
+             #target_list = target_list[np.isfinite(target_list)]
+             #target = np.argmax(target_list)
+             #u = target
+             #path=[]
+             #index= 0
+             #print('parents', len(parents),'parents', visited)
+             #print('target', target)
+             #if len(parents) != 0 and u != start:
+             #    while True:
+             #        path.append(u)
+             #
+             #        u = parents[u]
+             #        if u == start:
+             #            break
+             #path.reverse()
+
+
+             for k in range( 0 ,len(flipped_shortest_path)):
+
+                 x_data_sorted.append(data[0,flipped_shortest_path[k]])
+                 y_data_sorted.append(data[1,flipped_shortest_path[k]])
+                 z_data_sorted.append(data[2,flipped_shortest_path[k]])
+
+             print('len xdarta' ,len(x_data_sorted), 'x: ', x_data_sorted)
              return distances
-
          def sort_dots(metrics, start):
 
              dist_m = ss.distance.squareform(ss.distance.pdist(data.T, metrics))
@@ -203,26 +261,26 @@ def callback(msg):
                 Curv3DList.append(curvature3D)
 
          #sort_dots('euclidean',startingPoint(x_data))
-         print('Disjkstra', Dijkstra('euclidean',startingPoint(x_data)))
+
+         previous_path = np.array(Dijkstra('euclidean',startingPoint(x_data)))
+         inf_removed = previous_path[np.isfinite(previous_path)]
+         max_index= np.argmax(inf_removed)
+         print('lenDisjkstra', len(inf_removed), 'Dijkstra', inf_removed)
          #curvatureConstraint(x_data_sorted,y_data_sorted,z_data_sorted)
          #ax.plot([x_data_sorted[ len(x_data_sorted)-1]] , [y_data_sorted[len(y_data_sorted)-1]],[ z_data_sorted[len(z_data_sorted)-1]], 'o')
-         print('zdata:' , z_data_sorted)
-         print('xdata:' , x_data_sorted)
-         print('ydata:' , y_data_sorted)
+         #print('zdata:' , z_data_sorted)
+         #print('xdata:' , x_data_sorted)
+         #print('ydata:' , y_data_sorted)
          def chordLength():
              length = 0
              chordlength= 0
              chordpoints = np.array([x_data_sorted,y_data_sorted,z_data_sorted])
-
-             dist_m1 = ss.distance.squareform(ss.distance.pdist(chordpoints.T, 'euclidean'))
-             print('lenxdata' , len(x_data_sorted))
-             for c in range ( 0 , len(x_data_sorted)-1):
-                 chordlength +=  dist_m1[c,c+1]
+             chordlength =  max(inf_removed)
                  #print('dist : ' ,dist_m1[c,c+1])
-                 length = chordlength
-                 if ( c == len(x_data_sorted)):
-                      break
-
+             if (chordlength) == float("inf"):
+                 print("unsufficient amount of z coordinate assignments, Please adjust stereo proc settings in rqt configure or increase Dijkstra threshold!")
+                 rospy.signal_shutdown("an exception")
+                 time.sleep(500)
              return chordlength
 
          def polynomialFitting(x_vals,y_vals,z_vals):
@@ -261,12 +319,48 @@ def callback(msg):
              x_spline = BSpline(t, x_vals,k=2)
              y_spline = BSpline(t, y_vals,k=2)
              z_spline = BSpline(t, z_vals,k=2)
-             t_ = np.arange( 0,chordlength_ , 0.01)
-             ax.plot(x_vals, y_vals,z_vals,'o',markersize=2)
+             t_ = np.arange( 0 , chordlength_ , 0.001)
+
+             t_sample = np.arange(0, chordlength_, (chordlength_/sampleRate))
+             t_scl = np.append(t_sample, [chordlength_])
+
+             print('smapl', t_sample)
+             print('smapl + cl', t_scl)
+             for i in range (0, len(t_scl)):
+                   x_samples.append( x_spline(t_scl[i]))
+                   y_samples.append( y_spline(t_scl[i]))
+                   z_samples.append( z_spline(t_scl[i]))
+
+                   print(i,' ','sample', x_samples[i],' ','t: ', t_scl[i])
+             #print( 'x_samples' , x_samples[4])
+             t_ = np.arange( 0, chordlength_ , 0.0001)
+             sg.theme('DarkAmber')
+             layout = [  [sg.Text('Do you want to save data to CSV file? ')],
+                         [sg.Button('Ok'), sg.Button('Cancel')] ]
+             window = sg.Window('Test writer', layout)
+
+
+
+
+
+             ax.plot(x_vals, y_vals, z_vals,'o',markersize=1)
+             ax.plot( [ x_vals[0]], [y_vals[0]], [z_vals[0]],'go',markersize=6)
+             ax.plot( [x_vals[ len(x_vals)-1 ]], [y_vals[ len(x_vals)-1 ]], [z_vals[ len(x_vals)-1 ]],'ro',markersize=6)
 
              ax.plot(x_spline(t_), y_spline(t_),z_spline(t_))
              plt.show()
+             while True:
 
+                 event,values = window.read()
+
+                 if event == sg.WIN_CLOSED or event == 'Cancel':
+                     break
+
+                 if event == 'Ok':
+                     CSVFileCreator(t_scl,x_samples,y_samples,z_samples)
+                     print('Data has been added to CSV file')
+                     break
+             window.close()
          def polynomialFittingParametric(x_vals, y_vals):
 
              chordlength_ = chordLength()
@@ -290,15 +384,12 @@ def callback(msg):
              plt.plot( xi , yi )
          def spatialPolynomialFittingParametric(x_vals, y_vals, z_vals):
              t_scl = []
-
-
-
              chordlength_ = chordLength()
              print('chordlength: ', chordlength_)
              t =  np.linspace(0, chordlength_ , len(x_vals), endpoint=True)
-             x_params = np.polyfit( t , x_vals , 10)
-             y_params = np.polyfit( t , y_vals , 10)
-             z_params = np.polyfit( t , z_vals , 10)
+             x_params = np.polyfit( t , x_vals , 15)
+             y_params = np.polyfit( t , y_vals , 15)
+             z_params = np.polyfit( t , z_vals , 15)
              x = np.poly1d(x_params)
              y = np.poly1d(y_params)
              z = np.poly1d(z_params)
@@ -315,16 +406,18 @@ def callback(msg):
 
                    print(i,' ','sample', x_samples[i],' ','t: ', t_scl[i])
              #print( 'x_samples' , x_samples[4])
-             t_ = np.arange( 0, chordlength_ , 0.001)
+             t_ = np.arange( 0, chordlength_ , 0.01)
              sg.theme('DarkAmber')
              layout = [  [sg.Text('Do you want to save data to CSV file? ')],
                          [sg.Button('Ok'), sg.Button('Cancel')] ]
              window = sg.Window('Test writer', layout)
 
-
-             ax.plot( x_vals, y_vals , z_vals,'o', markersize=2)
+             ax.plot( [ x_vals[0]], [y_vals[0]], [z_vals[0]],'go',markersize=6)
+             ax.plot( [x_vals[ len(x_vals)-1 ]], [y_vals[ len(x_vals)-1 ]], [z_vals[ len(x_vals)-1 ]],'ro',markersize=6)
+             #ax.plot( [x_vals[ max_index]], [y_vals[ max_index ]], [z_vals[ max_index ]],'bo',markersize=6)
+             ax.plot( x_vals, y_vals , z_vals,'--o', markersize=2)
              ax.plot( x(t_) , y(t_), z(t_) )
-
+             ax.plot( x_data,y_data,z_data, 'go', markersize= 0.5)
              plt.show()
              while True:
 

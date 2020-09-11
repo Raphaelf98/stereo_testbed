@@ -5,6 +5,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/core.hpp>
 #include<opencv2/core/operations.hpp>
+#include<opencv2/ximgproc.hpp>
 #include<math.h>
 #include <vector>
 #include<Eigen/Dense>
@@ -190,7 +191,7 @@ return skel;
 
 }
 //https://stackoverflow.com/questions/32629806/how-can-i-calculate-the-curvature-of-an-extracted-contour-by-opencv/32630881
-cv::Point2i toolCenterPoint1(std::vector<std::vector<cv::Point>> vecContourPoints){
+/*cv::Point2i toolCenterPoint1(std::vector<std::vector<cv::Point>> vecContourPoints){
 
 std::cout <<"number of contours: "<< vecContourPoints.size()<<std::endl;
 cv::Point2f posOld, posOlder;
@@ -250,7 +251,7 @@ for( size_t j= 0; j < vecContourPoints.size(); j++ ){
 }
 
 }
-
+*/
 
 
 
@@ -416,14 +417,6 @@ void convexHull(int, void*)
 }*/
 
 
-
-
-
-
-
-
-
-
 class SubscribeAndPublish
 {
 
@@ -500,23 +493,25 @@ public:
     try
     {
       cv::normalize(cv_bridge::toCvShare(msg, "bgr8")->image , normal,0,255,cv::NORM_MINMAX,-1,cv::Mat());
-      spatialPointTest(normal);
-      if (snap == true) cv::imwrite("/home/ulzea/RESULTS/thinwire.png", normal); snap= false;
+//spatialPointTest(normal);
+      //if (snap == true) cv::imwrite("/home/ulzea/RESULTS/thinwire.png", normal); snap= false;
       //cv::medianBlur(normal,blur,3);
       //cv::GaussianBlur( normal, normal, cv::Size(9,9), 0, 0, cv::BORDER_DEFAULT );
+      cv::imshow("normal",normal);
       cv::cvtColor(normal, gray , cv::COLOR_RGB2GRAY);
-
+      cv::imshow("gray", gray);
       //if (snap == true) cv::imwrite("/home/ulzea/RESULTS/blackandwhiteimage.png", gray); snap= false;
       canny = gray;
       cv::blur(canny, canny, cv::Size(5,5));
       convexHull(0,0);
       binarize(0,0);
-      cv::imshow("gray", gray);
-      frame2 = skeletonize(gray);
 
+      //frame2 = skeletonize(gray);
+      cv::ximgproc::thinning(gray,frame2,cv::ximgproc::THINNING_ZHANGSUEN);
       //cv::imshow("convexHull", frame2);
-      cv::imshow("normal",normal);
-      cv::waitKey(10);
+      cv::imshow("skeleton", frame2);
+
+      cv::waitKey(1);
 
       SkeletonVect = convertToROSMsg(frame2);
       /*
@@ -567,7 +562,7 @@ public:
 
     std::cout<< "circle3D: ["<< circle3D.x<<","<<circle3D.y<<","<<circle3D.z<<"]"<<std::endl;
     std::cout<< "tcp 2D [p]: ["<< tcp.x<<","<<tcp.y<<"]"<<std::endl;
-    //pixelTo3DPoint(*pCloud_msg, tcp.x, tcp.y , points1.tcp);
+    pixelTo3DPoint(*pCloud_msg, tcp.x, tcp.y , points1.tcp);
     std::cout<< "tcp 3D [m]: ["<< points1.tcp.x<<","<< points1.tcp.y<<","<< points1.tcp.z<<"]"<<std::endl;
     for (int iter = 0; iter < SkeletonVect.size(); iter++)
     {
@@ -576,7 +571,8 @@ public:
       int v = SkeletonVect[iter].y;
 
       pixelTo3DPoint(*pCloud_msg, u, v, buff);
-      if(buff.x != 1000 &buff.y != 1000 &buff.z != 1000)
+      //if(buff.x != 1000 & buff.y != 1000 &buff.z != 1000)
+      if( -10 < buff.x && buff.x <10 )
       {
       SpatialSkeleton.push_back(buff);
       }
@@ -680,22 +676,15 @@ int main(int argc, char **argv)
   ros::Rate loop_rate(10);
   SubscribeAndPublish listener;
 
-
-
-
-
   cv::namedWindow(window_name);
   cv::namedWindow(window_nameCH);
   cv::createTrackbar( trackbar_value, window_name, &threshold_value, max_value, binarize);
   cv::createTrackbar("Canny threshold: ", "convexHull", &thresh, max_thresh, convexHull);
-  cv::createTrackbar("[tcp1]Curvature threshold Max: ", "convexHull", &curve_thresh_max, max_curve_thresh, convexHull);
-  cv::createTrackbar("[tcp1]Curvature threshold Min: ", "convexHull", &curve_thresh_min, max_curve_thresh, convexHull);
+
   cv::createTrackbar("[tcp2]step size: ", "convexHull", &step_min, step_max, convexHull);
   cv::startWindowThread();
 
   image_transport::ImageTransport it(nh);
-
-
 
   ros::Subscriber extrinsicParameter = nh.subscribe("/CameraTransform", 1, &SubscribeAndPublish::extrinsicParameterCallback, &listener);
   //image_transport::Subscriber sub = it.subscribe("camera/image_raw", 1, &SubscribeAndPublish::imageCallback, &listener);

@@ -369,7 +369,7 @@ void convexHull(int, void*)
       cv::drawContours( drawing, contours, (int)i, color1 );
       cv::drawContours( drawing, hull, (int)i, color );
   }
-  cv::imshow( window_nameCH, drawing );
+//cv::imshow( window_nameCH, drawing );
 
 
  //cv::imwrite("/home/ulzea/RESULTS/worm/frame_ "+std::to_string(k)+ ".png", drawing);
@@ -497,7 +497,7 @@ public:
       //if (snap == true) cv::imwrite("/home/ulzea/RESULTS/thinwire.png", normal); snap= false;
       //cv::medianBlur(normal,blur,3);
       //cv::GaussianBlur( normal, normal, cv::Size(9,9), 0, 0, cv::BORDER_DEFAULT );
-      cv::imshow("normal",normal);
+      //cv::imshow("normal",normal);
       cv::cvtColor(normal, gray , cv::COLOR_RGB2GRAY);
       cv::imshow("gray", gray);
       //if (snap == true) cv::imwrite("/home/ulzea/RESULTS/blackandwhiteimage.png", gray); snap= false;
@@ -558,12 +558,14 @@ public:
   }
   void point2CloudCallback(const sensor_msgs::PointCloud2Ptr& pCloud_msg)
   { std::cout<< "circle: ["<< circle.x<<","<<circle.y<<"]"<<std::endl;
-    pixelTo3DPoint(*pCloud_msg, circle.x,circle.y,circle3D);
+    //pixelTo3DPoint(*pCloud_msg, circle.x,circle.y,circle3D);
 
-    std::cout<< "circle3D: ["<< circle3D.x<<","<<circle3D.y<<","<<circle3D.z<<"]"<<std::endl;
+    //std::cout<< "circle3D: ["<< circle3D.x<<","<<circle3D.y<<","<<circle3D.z<<"]"<<std::endl;
     std::cout<< "tcp 2D [p]: ["<< tcp.x<<","<<tcp.y<<"]"<<std::endl;
     pixelTo3DPoint(*pCloud_msg, tcp.x, tcp.y , points1.tcp);
     std::cout<< "tcp 3D [m]: ["<< points1.tcp.x<<","<< points1.tcp.y<<","<< points1.tcp.z<<"]"<<std::endl;
+    if (SkeletonVect.size() < 3000)
+    {
     for (int iter = 0; iter < SkeletonVect.size(); iter++)
     {
       geometry_msgs::Point buff;
@@ -582,6 +584,7 @@ public:
     }
      points1.points = SpatialSkeleton;
     SpatialSkeleton.clear();
+    }
   }
 
   void pixelTo3DPoint(const sensor_msgs::PointCloud2 pCloud, const double u, const double v, geometry_msgs::Point &p)
@@ -677,11 +680,11 @@ int main(int argc, char **argv)
   SubscribeAndPublish listener;
 
   cv::namedWindow(window_name);
-  cv::namedWindow(window_nameCH);
+  //cv::namedWindow(window_nameCH);
   cv::createTrackbar( trackbar_value, window_name, &threshold_value, max_value, binarize);
-  cv::createTrackbar("Canny threshold: ", "convexHull", &thresh, max_thresh, convexHull);
+  //cv::createTrackbar("Canny threshold: ", "convexHull", &thresh, max_thresh, convexHull);
 
-  cv::createTrackbar("[tcp2]step size: ", "convexHull", &step_min, step_max, convexHull);
+  //cv::createTrackbar("[tcp2]step size: ", "convexHull", &step_min, step_max, convexHull);
   cv::startWindowThread();
 
   image_transport::ImageTransport it(nh);

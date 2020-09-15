@@ -143,7 +143,7 @@ int main(int argc, char **argv)
   ros::Publisher pub = nh.advertise<package1::cameraTransformation>("CameraTransform", 1);
 
 
-  image_transport::CameraSubscriber camerasub = it.subscribeCamera("/stereo/left/image_rect", 1, &SubscribeAndPublish::imageCallback, &listener);
+  image_transport::CameraSubscriber camerasub = it.subscribeCamera("/stereo/left/image_mono", 10, &SubscribeAndPublish::imageCallback, &listener);
 
   //ros::spin();
   while(ros::ok())

@@ -103,7 +103,7 @@ public:
       std::cout << rotation[j];
       }
 
-       CameraTransform_msg.tvec.x=  translation[0];
+       CameraTransform_msg.tvec.x=  translation[0]+0.015;
         CameraTransform_msg.tvec.y=  translation[1];
          CameraTransform_msg.tvec.z=  translation[2];
       std::cout<<  "    translation: ";

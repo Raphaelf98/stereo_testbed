@@ -12,7 +12,9 @@ from scipy.interpolate import UnivariateSpline
 from scipy.interpolate import BSpline
 from scipy import interpolate
 import matplotlib.pyplot as plt
-
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import dijkstra
+from scipy.sparse.csgraph import shortest_path
 import scipy.spatial as ss
 from scipy.stats import linregress
 from time import time
@@ -94,27 +96,30 @@ def callback(msg):
          #method finds index of lowest x-values
          def startingPoint(values):
              minElementIndex = np.where(values == np.amin(values))
-             print('start coordinates: ' ,minElementIndex[0][0])
+             print('start coordinates: ' ,'x: ' ,x_data[minElementIndex[0][0]],' y: ' ,y_data[minElementIndex[0][0]],'z: ' ,z_data[minElementIndex[0][0]])
              return minElementIndex[0][0]
 
 
          adjacency_matrix = ss.distance.squareform(ss.distance.pdist(data.T, 'euclidean'))
-         Dijkstra_parameter = 0.0005
+         Dijkstra_parameter = 0.005
          adjacency_matrix[adjacency_matrix > Dijkstra_parameter] = 0
 
          visited = [False for _ in range(len( adjacency_matrix))]
          distances = [float("inf") for _ in range(len( adjacency_matrix))]
          #print('len distances: ' ,len(distances),'distances', distances[500])
          already_visited =[]
-         parents = [float("inf") for _ in range(len( adjacency_matrix))]
+
+
         #https://www.algorithms-and-technologies.com/dijkstra/python
          def Dijkstra(metrics, start):
              global t
              global jump_once_more
              next_iteration= False
 
-             Jump_threshold = 0.03
-             min_jump_threshold =0.0006
+
+
+             Jump_threshold = 0.01
+             min_jump_threshold =0.002
 
              adjacency_matrix_full = ss.distance.squareform(ss.distance.pdist(data.T, metrics))
              adjacency_matrix_full[adjacency_matrix_full > Jump_threshold] = 0
@@ -152,12 +157,13 @@ def callback(msg):
                          distances[i] = distances[shortest_index] + adjacency_matrix[shortest_index][i]
                          graph.append([i,shortest_index])
 
+                         #graph.append([i,shortest_index])
                          #print("Updating distance of node " + str(i) + " to " + str(distances[i]))
                          #parents[i]=shortest_index
                  already_visited.append(shortest_index)
                  visited[shortest_index] = True
              shortest_path =[]
-             print('graph' , graph)
+             #print('graph' , graph)
              if len(graph) != 0:
                     shortest_path.append(graph[len(graph)-1][0])
                     pos = graph[len(graph)-1][1]
@@ -177,12 +183,12 @@ def callback(msg):
 
                     next_position_list = np.array(adjacency_matrix_full[flipped_shortest_path[-1]])
 
-                    print('position', flipped_shortest_path[-1],'next_position list length  ', len(next_position_list) ,'next_position list ' ,next_position_list)
+                    #print('position', flipped_shortest_path[-1],'next_position list length  ', len(next_position_list) ,'next_position list ' ,next_position_list)
                     for f in range(0,len(already_visited)):
                          next_position_list[already_visited[f]] = 0.0
 
-                    print('position', flipped_shortest_path[-1],'next_position list length  ', len(next_position_list) ,'next_position list ' ,next_position_list)
-                    print('len adjacency_matrix', len(adjacency_matrix) , 'len already_visited', len(already_visited))
+                    #print('position', flipped_shortest_path[-1],'next_position list length  ', len(next_position_list) ,'next_position list ' ,next_position_list)
+                    #print('len adjacency_matrix', len(adjacency_matrix) , 'len already_visited', len(already_visited))
                     if not np.all(next_position_list==0) and len(already_visited) < len(adjacency_matrix):
                            start_= np.where(next_position_list == np.min(next_position_list[np.nonzero(next_position_list)]))
                            flipped_shortest_path.append(start_[0][0])
@@ -204,7 +210,7 @@ def callback(msg):
                         jump_once_more= False
 
              collected_distances.append(distances)
-             print( 'colected distances ' , collected_distances)
+             #print( 'colected distances ' , collected_distances)
 
              for k in range( 0 ,len(flipped_shortest_path)):
 
@@ -218,10 +224,40 @@ def callback(msg):
 
              if next_iteration:
                  if start_[0][0] != 0:
-                    print('adjacency_matrix', adjacency_matrix[start_[0][0]])
+                    #print('adjacency_matrix', adjacency_matrix[start_[0][0]])
                     if not np.all(adjacency_matrix[start_[0][0]] == 0):
                         print('next iter starts                                                              ')
                         Dijkstra('euclidean', start_[0][0])
+
+         def get_path(Pr, i, j):
+             path = [j]
+             k = j
+             while Pr[k] != -9999:
+                 path.append(Pr[k])
+                 k = Pr[k]
+             return path[::-1]
+
+
+         def Dijkstra2(start):
+             adjacency_matrix1 = ss.distance.squareform(ss.distance.pdist(data.T, 'euclidean'))
+             Dijkstra_parameter1 = 0.008
+             adjacency_matrix1[adjacency_matrix1 > Dijkstra_parameter1] = 0
+             Graph = csr_matrix(adjacency_matrix1)
+             #standard library version
+             dist_matrix, predecessors = shortest_path(csgraph=Graph,method='D'  ,directed=False, indices=start, return_predecessors=True)
+             max_element = np.argmax(dist_matrix)
+             print('start', max_element)
+             print('predecessors', predecessors)
+             print('dist matrix ' , dist_matrix)
+             shortest_path_to_distal_point = get_path(predecessors, start, max_element)
+             print('shortest path', shortest_path_to_distal_point)
+             for k in range( 0 ,len(shortest_path_to_distal_point)):
+
+                 x_data_sorted.append(data[0,shortest_path_to_distal_point[k]])
+                 y_data_sorted.append(data[1,shortest_path_to_distal_point[k]])
+                 z_data_sorted.append(data[2,shortest_path_to_distal_point[k]])
+             return max(dist_matrix)
+
 
 
 
@@ -294,14 +330,14 @@ def callback(msg):
          #sort_dots('euclidean',startingPoint(x_data))
          #time = 0
          starttime = timeit.default_timer()
-
-         Dijkstra('euclidean',startingPoint(x_data))
+         max_index = Dijkstra2(startingPoint(x_data))
+         #Dijkstra('euclidean',startingPoint(x_data))
          time1 = timeit.default_timer() - starttime
          print("The time difference is :", time1)
          CSVTimeWriter(len(adjacency_matrix), time1)
-         previous_path = np.array(collected_distances)
-         inf_removed = previous_path[np.isfinite(previous_path)]
-         max_index = max(inf_removed)
+         #previous_path = np.array(collected_distances)
+         #inf_removed = previous_path[np.isfinite(previous_path)]
+         #max_index = max(inf_removed)
          #print('lenDisjkstra', len(inf_removed), 'Dijkstra', inf_removed)
          #curvatureConstraint(x_data_sorted,y_data_sorted,z_data_sorted)
          #ax.plot([x_data_sorted[ len(x_data_sorted)-1]] , [y_data_sorted[len(y_data_sorted)-1]],[ z_data_sorted[len(z_data_sorted)-1]], 'o')
@@ -427,9 +463,9 @@ def callback(msg):
              chordlength_ = chordLength()
              print('chordlength: ', chordlength_)
              t =  np.linspace(0, chordlength_ , len(x_vals), endpoint=True)
-             x_params = np.polyfit( t , x_vals , 15)
-             y_params = np.polyfit( t , y_vals , 15)
-             z_params = np.polyfit( t , z_vals , 15)
+             x_params = np.polyfit( t , x_vals , 5)
+             y_params = np.polyfit( t , y_vals , 5)
+             z_params = np.polyfit( t , z_vals , 5)
              x = np.poly1d(x_params)
              y = np.poly1d(y_params)
              z = np.poly1d(z_params)
@@ -459,6 +495,7 @@ def callback(msg):
              ax.plot( x_vals, y_vals , z_vals,'--o', markersize=2)
              ax.plot( x(t_) , y(t_), z(t_) )
              ax.plot( x_data,y_data,z_data, 'go', markersize= 0.5)
+             ax.text(0.05, 0.05, 0.05, "startpoint: ["+ str(round(x_vals[0],4)) +','+str(round(y_vals[0],4)) +','+ str(round(z_vals[0],4))+']', color='black')
              plt.show()
              while True:
 

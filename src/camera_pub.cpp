@@ -18,10 +18,9 @@ int main(int argc, char** argv)
   // Check if it is indeed a number
 
 
- // cv::VideoCapture cap(video_source);
+
    cv::VideoCapture cap(0);
-   //cap.set(cv::CAP_PROP_FRAME_HEIGHT, 400);  cap.set(cv::CAP_PROP_FRAME_WIDTH, 680);
-  // Check if video device can be opened with the given index
+
   if(!cap.isOpened()) {std::cout<< "cannot open video stream!"<< std::endl;return 1;}
   cv::Mat frame;
 
@@ -30,7 +29,7 @@ int main(int argc, char** argv)
   ros::Rate loop_rate(30);
   while (nh.ok()) {
     cap >> frame;
-    //cv::resize(frame,frame,cv::Size(1000,1000),0,0,cv::INTER_CUBIC);
+
     // Check if grabbed frame is actually full with some content
     if(!frame.empty()) {
       msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", frame).toImageMsg();

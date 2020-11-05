@@ -26,7 +26,7 @@ private:
    bool corners_found = false;
 public:
 
-   //std::vector<cv::Point2f> findCorners(cv::Mat img)
+
    void findCorners(cv::Mat img,std::vector<cv::Point2f>& cornersFound)
    {
 
@@ -104,7 +104,7 @@ public:
       std::cout << rotation[j];
       }
 
-       CameraTransform_msg.tvec.x=  translation[0];//-0.015;
+       CameraTransform_msg.tvec.x=  translation[0];
         CameraTransform_msg.tvec.y=  translation[1];
          CameraTransform_msg.tvec.z=  translation[2];
       std::cout<<  "    translation: ";
@@ -146,7 +146,6 @@ int main(int argc, char **argv)
 
   image_transport::CameraSubscriber camerasub = it.subscribeCamera("/stereo/left/image_mono", 10, &SubscribeAndPublish::imageCallback, &listener);
 
-  //ros::spin();
   while(ros::ok())
   {
     listener.CameraTransformationPublisher(&pub);

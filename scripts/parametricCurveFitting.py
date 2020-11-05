@@ -281,71 +281,7 @@ def callback(msg):
 
 
 
-         def sort_dots(metrics, start):
 
-             dist_m = ss.distance.squareform(ss.distance.pdist(data.T, metrics))
-             print('distm' , dist_m[0])
-             total_points = data.shape[1]
-             points_index = set(range(total_points))
-             sorted_index = []
-             target    = start
-             ax.plot( [data[0, target]] ,  [data[1, target]], [data[2, target]], 'ro')
-
-             points_index.discard(target)
-             while len(points_index)>0:
-                 candidate = list(points_index)
-                 nneigbour = candidate[dist_m[target, candidate].argmin()]
-
-                 if (dist_m[target, nneigbour] <= neighbourhoodDistancethreshold):
-
-                       sorted_index.append(target)
-
-                       points_index.discard(nneigbour)
-                       points_index.discard(target)
-                 #print points_index, target, nneigbour
-                 #print ('distance: ' ,dist_m[target, nneigbour])
-
-                       target = nneigbour
-                 else:
-
-                      break
-
-             print('length sorted indeces: ', len(sorted_index))
-             print('sorted_index: ',sorted_index)
-
-             for s in range( 0,len(sorted_index)):
-
-                 x_data_sorted.append(data[0,sorted_index[s]])
-                 y_data_sorted.append(data[1,sorted_index[s]])
-                 z_data_sorted.append(data[2,sorted_index[s]])
-
-         def curvatureConstraint(x_sor,y_sor, z_sor):
-             Curv3DList = []
-             posOld_x = 0
-             posOld_y = 0
-             posOld_z = 0
-             posOlder_x=0
-             posOlder_y=0
-             posOlder_z=0
-
-             for s in range(0, len(x_sor)):
-                pos_x = x_sor[s]
-                pos_y = y_sor[s]
-                pos_z = z_sor[s]
-                if (t) == 0 :
-                    posOld_x= posOlder_x=pos_x
-                    posOld_y= posOlder_y=pos_y
-                    posOld_z= posOlder_z=pos_z
-                firstDerivative_x = pos_x - posOld_x
-                firstDerivative_y = pos_y - posOld_y
-                firstDerivative_z = pos_y - posOld_z
-                secondDerivative_x = pos_x - 2.0*posOld_x+posOlder_x
-                secondDerivative_y = pos_y - 2.0*posOld_y+posOlder_y
-                secondDerivative_z = pos_z - 2.0*posOld_z+posOlder_z
-
-
-                curvature3D = math.sqrt( ( math.pow(secondDerivative_z*firstDerivative_y-secondDerivative_y*firstDerivative_z,2) + math.pow(secondDerivative_x*firstDerivative_z-secondDerivative_z*firstDerivative_x,2) + math.pow(secondDerivative_y*firstDerivative_x-secondDerivative_x*firstDerivative_y,2) ) / math.pow(math.pow(firstDerivative_x,2)+math.pow(firstDerivative_y,2)+math.pow(firstDerivative_z,2),3) )
-                Curv3DList.append(curvature3D)
 
 
 
@@ -367,29 +303,6 @@ def callback(msg):
                  rospy.signal_shutdown("an exception")
                  time.sleep(500)
              return chordlength
-
-         def polynomialFitting(x_vals,y_vals,z_vals):
-
-             n_xy=10
-             n_xz=5
-             p_xy = np.poly1d(np.polyfit(x_vals, y_vals, n_xy))
-             p_xz = np.poly1d(np.polyfit(x_vals, z_vals, n_xz))
-
-             t_xy = np.linspace(min(x_vals), max(x_vals), 100)
-             t_xz = np.linspace(min(x_vals), max(x_vals), 100)
-
-             plt.plot(x_vals, z_vals,'o',markersize=2)
-             #plt.plot(x_vals, y_vals, 'o', t, p(t), '-')
-             #plt.plot(t_xy, p_xy(t), '-', color= "orange")
-             plt.plot(t_xz, p_xz(t_xz), '-', color= "orange")
-             ##tcp constraint with euclidean norm, takes length of vectorOfPoints array and plugs it into the fitted polynomial function p,
-             ##the position of the tcp is expected in neighbourhood of the resulting coordinates. tcp_sensivity is equivalent to radius.
-             ##only tcp candidates laying within the radius are accepted
-             #
-             #epsilon = math.sqrt( (max(x_vals)-msg.tcp.x)**2 + (p(max(x_vals))- msg.tcp.y)**2)
-             #print('epsilon: ' , epsilon)
-             #if epsilon < tcp_sensivity:
-             #   plt.plot(msg.tcp.x, msg.tcp.y, marker='o', markersize=5, color="red")
 
 
          def splineFittingParametric(x_vals, y_vals,z_vals):
@@ -440,15 +353,15 @@ def callback(msg):
              #ax.set_zlim(-0.05,0.05)
              #ax.set_xlim(0,0.08)
              #ax.set_ylim(0,0.07)
-             ax.set_zlim(-0.05,0.05)
-             ax.set_xlabel('X-Axis')
-             ax.set_ylabel('Y-Axis')
-             ax.set_zlabel('Z-Axis')
-             ax.plot( x_data,y_data,z_data, 'co', markersize= 1,label='Visited nodes')
-             #ax.plot(x_vals, y_vals, z_vals,'--o',markersize=2,label='Shortest path')
-             ax.plot( [ x_vals[0]], [y_vals[0]], [z_vals[0]],'bo',markersize=8, label ='Starting point')
-             ax.plot( [x_vals[ len(x_vals)-1 ]], [y_vals[ len(x_vals)-1 ]], [z_vals[ len(x_vals)-1 ]],'ro',markersize=8,label ='End point')
-             ax.plot(x_spline(t_), y_spline(t_), z_spline(t_),'k',label='3rd degree B-spline' )
+             #ax.set_zlim(-0.05,0.05)
+             #ax.set_xlabel('X-Axis')
+             #ax.set_ylabel('Y-Axis')
+             #ax.set_zlabel('Z-Axis')
+             #ax.plot( x_data,y_data,z_data, 'co', markersize= 1,label='Visited nodes')
+             ##ax.plot(x_vals, y_vals, z_vals,'--o',markersize=2,label='Shortest path')
+             #ax.plot( [ x_vals[0]], [y_vals[0]], [z_vals[0]],'bo',markersize=8, label ='Starting point')
+             #ax.plot( [x_vals[ len(x_vals)-1 ]], [y_vals[ len(x_vals)-1 ]], [z_vals[ len(x_vals)-1 ]],'ro',markersize=8,label ='End point')
+             #ax.plot(x_spline(t_), y_spline(t_), z_spline(t_),'k',label='3rd degree B-spline' )
              #ax.plot([],[],[],' ',label='DP in [m]: '+str(Dijkstra_parameter1) )
              #ax.plot([],[],[],' ', label='Unsorted size: '+str(len(x_data)) )
              #ax.plot([],[],[],' ', label='Sorted size: '+str(len(x_vals)) )
@@ -471,6 +384,7 @@ def callback(msg):
              ax1.plot([],[],' ',label='DP in [m]: '+str(Dijkstra_parameter1) )
              ax1.plot([],[],' ', label='Unsorted size: '+str(len(x_data)) )
              ax1.plot([],[],' ', label='Sorted size: '+str(len(x_vals)) )
+             plt.pause(0.05)
              #ax1.legend(loc="upper right")
              #plt.savefig('/home/ulzea/RESULTS/Plots/3DPGF/loop2D3dbs.pgf')
              #ax1.plot(x_spline(t_), y_spline(t_))

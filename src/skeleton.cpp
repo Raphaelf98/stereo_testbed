@@ -74,8 +74,10 @@ struct Point
 
 void binarize(int, void*)
 {
-  cv::threshold(gray,gray,threshold_value, max_BINARY_value, 1);
-   //cv::threshold(gray,gray,70, max_BINARY_value, 1);
+ cv::threshold(gray,gray,threshold_value, max_BINARY_value, 1);
+  //cv::threshold(gray,gray,70, max_BINARY_value, 1);
+  //if (snap){cv::imwrite("/home/ulzea/RESULTS/testimages/loop_bnw.png", gray);}
+
 }
 
 
@@ -470,17 +472,22 @@ public:
     input[2]= inputPoint.z;
 
     cv::Vec3f subs;
-
+    cv::Vec3f add;
+    //cv::Mat output;
     cv::Rodrigues(rot,RotationMatrix);
-
-    //InvertedRotation = RotationMatrix.inv();
     cv::transpose(RotationMatrix,InvertedRotation);
-
+    //InvertedRotation = RotationMatrix.inv();
     cv::subtract(input, translation,subs);
-
-
     cv::Mat output = InvertedRotation*cv::Mat(subs);
-
+    //std::cout<<"roation:"<< RotationMatrix<<"invroation:"<<InvertedRotation<<std::endl;
+    //
+    //cv::Mat minusRt = -InvertedRotation*cv::Mat(translation);
+    //cv::Mat T = cv::Mat::eye(4,4,InvertedRotation.type());
+    //T( cv::Range(0,3), cv::Range(0,3) ) = InvertedRotation * 1;
+    //T( cv::Range(0,3), cv::Range(3,4) ) = minusRt * 1;
+    //
+    //output = T*cv::Mat(input);
+    //std::cout<< "input: "<< input <<  "  output: "<< output <<std::endl;
 
     transformedPoint.x = output.at<float>(0);
     transformedPoint.y = output.at<float>(1);
@@ -493,6 +500,7 @@ public:
     try
     {
       cv::normalize(cv_bridge::toCvShare(msg, "bgr8")->image , normal,0,255,cv::NORM_MINMAX,-1,cv::Mat());
+      //if (snap) cv::imwrite("/home/ulzea/RESULTS/testimages/loop_gray.png", normal);
 //spatialPointTest(normal);
       //if (snap == true) cv::imwrite("/home/ulzea/RESULTS/thinwire.png", normal); snap= false;
       //cv::medianBlur(normal,blur,3);
@@ -500,7 +508,7 @@ public:
       //cv::imshow("normal",normal);
       cv::cvtColor(normal, gray , cv::COLOR_RGB2GRAY);
       cv::imshow("gray", gray);
-      //if (snap == true) cv::imwrite("/home/ulzea/RESULTS/blackandwhiteimage.png", gray); snap= false;
+      //if (snap == true) cv::imwrite("/home/ulzea/RESULTS/testimages/blackandwhiteimage.png", gray); snap= false;
       canny = gray;
       cv::blur(canny, canny, cv::Size(5,5));
       convexHull(0,0);
@@ -508,6 +516,7 @@ public:
 
       //frame2 = skeletonize(gray);
       cv::ximgproc::thinning(gray,frame2,cv::ximgproc::THINNING_ZHANGSUEN);
+      //if (snap){ cv::imwrite("/home/ulzea/RESULTS/testimages/loop_skeleton.png", frame2); snap = false;}
       //cv::imshow("convexHull", frame2);
       cv::imshow("skeleton", frame2);
 

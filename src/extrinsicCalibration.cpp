@@ -1,3 +1,4 @@
+
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
 #include <opencv2/highgui/highgui.hpp>
@@ -9,9 +10,9 @@
 #include <std_msgs/Float64.h>
 #include<boost/array.hpp>
 
-cv::Size boardSize(7,6);
+const cv::Size boardSize(7,6);
 
-float squareEdgeLength = 0.015;
+const float squareEdgeLength = 0.015;
 
 class SubscribeAndPublish
 {

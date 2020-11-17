@@ -10,7 +10,7 @@
 
 #include<math.h>
 #include <vector>
-
+#include <string>
 #include<geometry_msgs/Point.h>
 #include<package1/vectorOfPoints.h>
 #include<package1/cameraTransformation.h>
@@ -20,34 +20,14 @@
 
 
 cv::Mat gray;
-cv::Mat normal, frame2;
 cv::Mat blur;
-cv::Mat img;
-cv::Mat canny;
-cv::Vec4f line;
-cv::Point pt1, pt2;
-
-
-
-float d, t;
 int threshold_value = 0;
 int const max_value = 255;
-
 const int ratio = 3;
 const int kernel_size = 3;
-
 int const max_BINARY_value = 255;
-char* window_name= "skeleton";
-char* window_nameCH= "convexHull";
+const std::string window = "skeleton";
 char* trackbar_value = "Value";
-
-std::vector<cv::Point> locations;
-
-
-int thresh = 100;
-
-cv::Point2i  tcp;
-
 
 
 struct Point
@@ -86,152 +66,6 @@ std::vector<Point> convertToROSMsg(cv::Mat frame1)
   std::vector<Point> my_vector (my_array, my_array + sizeof(my_array) / sizeof(Point));
   return my_vector;
  }
-
-
-
-
-void LinearEstimator(std::vector<cv::Point> points)
-  {
-  cv::fitLine(points, line, cv::DIST_L1, 1,0.001,0.001);
-  //draw Points
- cv::Mat img(normal.size(), CV_8UC1, cv::Scalar(0));
-
-  for (int i=0; i < points.size(); i++ )
-  {
-    cv::circle(img,points[i],1,cv::Scalar(100, 100, 255),cv::FILLED,16,cv::LINE_8);
-
-
-  }
-  // ... and the long enough line to cross the whole image
-  d = sqrt( (double)line[0]*line[0] + (double)line[1]*line[1] );
-  line[0] /= d;
-  line[1] /= d;
-  t = (float)(img.cols + img.rows);
-  pt1.x = cvRound(line[2] - line[0]*t);
-  pt1.y = cvRound(line[3] - line[1]*t);
-  pt2.x = cvRound(line[2] + line[0]*t);
-  pt2.y = cvRound(line[3] + line[1]*t);
-  cv::line( img, pt1, pt2, cv::Scalar(255,255,255), 1, 16, 0 );
-
-  //cv::imshow( "Approximation", img );
-}
-
-
-
-cv::Point2i toolCenterPoint2(std::vector<std::vector<cv::Point>> vecContourPoints, int step)
-{
-
-std::cout <<"number of contours: "<< vecContourPoints.size()<<std::endl;
-cv::Point2f posOld, posOlder;
-cv::Point2f f1stDerivative, f2ndDerivative;
-// the outer for loop iterates over the amount of countours, the inner one iterates over the the individual contour
-for( int j= 0; j < vecContourPoints.size(); j++ )
-{
-  if (vecContourPoints.size() > 1)
-  {
-    std::cout<< "     The contour is not closed!"<<std::endl;
-  }
-
-  cv::Mat tcp(normal.size(), CV_8UC1, cv::Scalar(0));
-  std::vector <float> vecCurvature(vecContourPoints[j].size());
-  cv::Point2i TCP;
-  std::vector<cv::Point2i> vecCurvaturePosition(vecContourPoints[j].size());
-
-  auto frontToBack = vecContourPoints[j].front() - vecContourPoints[j].back();
-
-  bool isClosed = ((int)std::max(std::abs(frontToBack.x), std::abs(frontToBack.y))) <= 1; //check if contour is closed
-  if (isClosed) std:: cout << " contour is closed!!!"<< std::endl;
-  cv::Point2f pplus, pminus;
-  cv::Point2f f1stDerivative, f2ndDerivative;
-  for (int i = 0; i < vecContourPoints[j].size(); i++ )
-      {
-
-       const cv::Point2f &pos = vecContourPoints[j][i];
-       int maxStep = step;
-       /*if (!isClosed)
-               {
-                 maxStep = std::min( std::min(step, i) , (int) vecContourPoints[j].size()-1-i);
-                 if (maxStep == 0)
-                   {
-                     vecCurvature[i] = std::numeric_limits<double>::infinity();
-                     continue;
-                   }
-               }*/
-
-        int iminus = i-maxStep;
-        int iplus = i+maxStep;
-        pminus = vecContourPoints[j][iminus < 0 ? iminus + vecContourPoints[j].size() : iminus];
-        pplus = vecContourPoints[j][iplus > vecContourPoints[j].size() ? iplus - vecContourPoints[j].size() : iplus];
-
-
-        f1stDerivative.x =   (pplus.x -        pminus.x) / (iplus-iminus);
-        f1stDerivative.y =   (pplus.y -        pminus.y) / (iplus-iminus);
-        f2ndDerivative.x = (pplus.x - 2*pos.x + pminus.x) / ((iplus-iminus)/2*(iplus-iminus)/2);
-        f2ndDerivative.y = (pplus.y - 2*pos.y + pminus.y) / ((iplus-iminus)/2*(iplus-iminus)/2);
-
-        double curvature2D;
-        double divisor = f1stDerivative.x*f1stDerivative.x + f1stDerivative.y*f1stDerivative.y;
-        if ( std::abs(divisor) > 10e-8 )
-          {
-            curvature2D =  std::abs(f2ndDerivative.y*f1stDerivative.x - f2ndDerivative.x*f1stDerivative.y) /
-                  pow(divisor, 3.0/2.0 )  ;
-          }
-        else
-          {
-            curvature2D = std::numeric_limits<double>::infinity();
-          }
-
-        vecCurvature[i] = curvature2D;
-        vecCurvaturePosition[i].x = pos.x;
-        vecCurvaturePosition[i].y =pos.y;
-      }
-
-
-
-  int maxElementIndex = std::max_element(vecCurvature.begin(), vecCurvature.end())- vecCurvature.begin();
-  //return the amount of curvature vectors found
-  //std::cout << vecCurvaturePosition[maxElementIndex]<<std::endl;
-
-  TCP =  vecCurvaturePosition[maxElementIndex];
-
-
-  return TCP;
-}
-
-}
-
-void convexHull(int, void*)
-{
-  cv::Mat canny_output;
-
-  cv::Canny(canny, canny_output, thresh, thresh*ratio,kernel_size);
-  cv::imshow("canny", canny_output);
-  std::vector<std::vector<cv::Point>> contours;
-
-  cv::findContours(canny_output, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-  cv::Mat drawing = cv::Mat::zeros( canny_output.size() , CV_8UC3 );
-  //tcp =  toolCenterPoint2(contours,step_min);
-  //tcp =  toolCenterPoint2(contours,4);
- // tcp= toolCenterPoint2(contours,5);
-  cv::circle(drawing, tcp , 8, cv::Scalar( 255, 255, 255 ),-2,8,0);
-
-  std::vector<std::vector<cv::Point>>  hull( contours.size() );
-  for(size_t i = 0; i< contours.size(); i++)
-  {
-    cv::convexHull(contours[i],hull[i]);
-
-  }
-
-  for( size_t i = 0; i< contours.size(); i++ )
-  {
-      cv::Scalar color = cv::Scalar( 0,255,0 );
-      cv::Scalar color1 = cv::Scalar( 0,0,255 );
-      cv::drawContours( drawing, contours, (int)i, color1 );
-      cv::drawContours( drawing, hull, (int)i, color );
-  }
-
-}
-
 
 class SubscribeAndPublish
 {
@@ -302,6 +136,8 @@ public:
 
   void imageCallback(const sensor_msgs::ImageConstPtr& msg)
   {
+    cv::Mat normal, frame2;
+
     try
     {
       cv::normalize(cv_bridge::toCvShare(msg, "bgr8")->image , normal,0,255,cv::NORM_MINMAX,-1,cv::Mat());
@@ -309,9 +145,6 @@ public:
       cv::cvtColor(normal, gray , cv::COLOR_RGB2GRAY);
       cv::imshow("gray", gray);
 
-      canny = gray;
-      cv::blur(canny, canny, cv::Size(5,5));
-      convexHull(0,0);
       binarize(0,0);
 
       cv::ximgproc::thinning(gray,frame2,cv::ximgproc::THINNING_ZHANGSUEN);
@@ -332,12 +165,7 @@ public:
 
   }
   void point2CloudCallback(const sensor_msgs::PointCloud2Ptr& pCloud_msg)
-  { std::cout<< "circle: ["<< circle.x<<","<<circle.y<<"]"<<std::endl;
-
-
-    std::cout<< "tcp 2D [p]: ["<< tcp.x<<","<<tcp.y<<"]"<<std::endl;
-    pixelTo3DPoint(*pCloud_msg, tcp.x, tcp.y , points1.tcp);
-    std::cout<< "tcp 3D [m]: ["<< points1.tcp.x<<","<< points1.tcp.y<<","<< points1.tcp.z<<"]"<<std::endl;
+  {
     if (SkeletonVect.size() < 3000)
     {
     for (int iter = 0; iter < SkeletonVect.size(); iter++)
@@ -391,36 +219,7 @@ public:
           rigidBodyTransform(input_,p);
 
 }
-  void spatialPointTest(cv::Mat frme)
-  {
-    cv::Mat  image;
-    cv::cvtColor(frme, image , cv::COLOR_RGB2GRAY);
 
-    std::vector<cv::Vec3f> circles;
-
-    GaussianBlur(image, image, cv::Size(9, 9), 2, 2 );
-    HoughCircles(image, circles, CV_HOUGH_GRADIENT, 1, image.rows/8, 200, 100, 0, 0 );
-    for( size_t i = 0; i < circles.size(); i++ )
-      {
-          cv::Point center(cvRound(circles[i][0]), cvRound(circles[i][1]));
-          int radius = cvRound(circles[i][2]);
-          // circle center
-          cv::circle( frme, center, 3, cv::Scalar(0,255,0), -1, 8, 0 );
-          // circle outline
-          cv::circle( frme, center, radius, cv::Scalar(0,0,255), 3, 8, 0 );
-       }
-    if (circles.size()>0)
-    {
-    circle.x = round( circles[0][0]);
-    circle.y = round(circles[0][1]);
-
-    cv::putText(frme, "Coordinates: x:"+ std::to_string(circle3D.x) +"  y:" +std::to_string(circle3D.y)+"  z:" + std::to_string(circle3D.z), cv::Point(10,50), cv::FONT_HERSHEY_SIMPLEX, 0.5,CV_RGB(0,255,255),2);
-    }
-    //
-    cv::namedWindow( "Hough Circle Transform Demo", cv::WINDOW_AUTOSIZE );
-    imshow( "Hough Circle Transform Demo", frme );
-    circles.clear();
-  }
 
 
 
@@ -446,9 +245,9 @@ int main(int argc, char **argv)
   ros::Rate loop_rate(10);
   SubscribeAndPublish listener;
 
-  cv::namedWindow(window_name);
+  cv::namedWindow(window);
 
-  cv::createTrackbar( trackbar_value, window_name, &threshold_value, max_value, binarize);
+  cv::createTrackbar( trackbar_value, window, &threshold_value, max_value, binarize);
 
   cv::startWindowThread();
 
@@ -473,6 +272,6 @@ int main(int argc, char **argv)
    }
 
 
-  cv::destroyWindow(window_name);
-  cv::destroyWindow(window_nameCH);
+  cv::destroyWindow(window);
+
 }

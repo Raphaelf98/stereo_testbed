@@ -8,7 +8,6 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   sensor_msgs
   std_msgs
-  rviz_visual_tools
   message_generation
     cmake_modules
 )
@@ -28,9 +27,8 @@ generate_messages(
 )
 
 catkin_package(
- INCLUDE_DIRS include
  LIBRARIES package1
- CATKIN_DEPENDS cv_bridge image_transport roscpp sensor_msgs std_msgs message_runtime rviz_visual_tools
+ CATKIN_DEPENDS cv_bridge image_transport roscpp sensor_msgs std_msgs message_runtime
  DEPENDS system_lib Eigen
 )
 

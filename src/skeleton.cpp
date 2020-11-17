@@ -15,7 +15,7 @@
 #include<package1/vectorOfPoints.h>
 #include<package1/cameraTransformation.h>
 #include<sensor_msgs/PointCloud2.h>
-#include<rviz_visual_tools/rviz_visual_tools.h>
+
 
 
 

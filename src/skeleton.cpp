@@ -49,7 +49,7 @@ void binarize(int, void*)
 }
 
 //method for converting std::vector<cv::Point> type to ROS message. Returns ROS message type
-std::vector<Point> convertToROSMsg(cv::Mat frame1)
+std::vector<Point> convertToPointVect(cv::Mat frame1)
 {
   std::vector<cv::Point>  coordinates;
   cv::findNonZero(frame1,coordinates);
@@ -85,8 +85,7 @@ private:
   std::vector<float> rot = {0,0,0};
   cv::Vec3f translation;
   bool transformSet = false;
-  geometry_msgs::Point circle;
-  geometry_msgs::Point circle3D;
+
 public:
 
 
@@ -109,7 +108,7 @@ public:
     cv::Vec3f input;
     if (std::isnan(inputPoint.x))
     {
-      std::cout<<"no information" << std::endl;
+
       inputPoint.x =1000;
       inputPoint.y =1000;
       inputPoint.z =1000;
@@ -146,14 +145,14 @@ public:
       cv::imshow("gray", gray);
 
       binarize(0,0);
-
+      cv::imshow("binarized",gray);
       cv::ximgproc::thinning(gray,frame2,cv::ximgproc::THINNING_ZHANGSUEN);
 
       cv::imshow("skeleton", frame2);
 
       cv::waitKey(1);
 
-      SkeletonVect = convertToROSMsg(frame2);
+      SkeletonVect = convertToPointVect(frame2);
 
 
     }
@@ -166,8 +165,8 @@ public:
   }
   void point2CloudCallback(const sensor_msgs::PointCloud2Ptr& pCloud_msg)
   {
-    if (SkeletonVect.size() < 3000)
-    {
+    //if (SkeletonVect.size() < 3000)
+    //{
     for (int iter = 0; iter < SkeletonVect.size(); iter++)
     {
       geometry_msgs::Point buff;
@@ -184,7 +183,7 @@ public:
     }
      points1.points = SpatialSkeleton;
     SpatialSkeleton.clear();
-    }
+    //}
   }
 
   void pixelTo3DPoint(const sensor_msgs::PointCloud2 pCloud, const double u, const double v, geometry_msgs::Point &p)
@@ -240,9 +239,9 @@ int main(int argc, char **argv)
   bool extrinsicCalibration = false;
   ros::init(argc, argv, "skeleton");
   ros::NodeHandle nh;
-  ros::Publisher pub = nh.advertise<package1::vectorOfPoints>("SkeletonPoints", 1);
+  ros::Publisher pub = nh.advertise<package1::vectorOfPoints>("SkeletonPoints", 100);
 
-  ros::Rate loop_rate(10);
+  ros::Rate loop_rate(15);
   SubscribeAndPublish listener;
 
   cv::namedWindow(window);

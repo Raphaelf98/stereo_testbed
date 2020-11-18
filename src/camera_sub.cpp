@@ -26,7 +26,7 @@ int main(int argc, char **argv)
   cv::startWindowThread();
   image_transport::ImageTransport it(nh);
 
-  image_transport::Subscriber sub = it.subscribe("rpicam_right/image", 1, imageCallback);
+  image_transport::Subscriber sub = it.subscribe("stereo/right/image_raw", 1, imageCallback);
 
   ros::spin();
   cv::destroyWindow("view");

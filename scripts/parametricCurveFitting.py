@@ -115,7 +115,7 @@ def callback(msg):
                  print("unsufficient amount of z coordinate assignments, Please adjust stereo proc settings in rqt configure or increase Dijkstra threshold!")
                  rospy.signal_shutdown("an exception")
                  time.sleep(500)
-             return chordlength:
+             return chordlength
 
          #approximates sorted backbone points with third degree B-spline
          def splineFittingParametric(x_vals, y_vals,z_vals):

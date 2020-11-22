@@ -4,7 +4,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/calib3d.hpp>
 #include <cv_bridge/cv_bridge.h>
-#include<package1/cameraTransformation.h>
+#include<stereo_testbed/cameraTransformation.h>
 #include<math.h>
 #include <vector>
 #include <std_msgs/Float64.h>
@@ -17,7 +17,7 @@ const float squareEdgeLength = 0.015;
 class SubscribeAndPublish
 {
 private:
-   package1::cameraTransformation CameraTransform_msg;
+   stereo_testbed::cameraTransformation CameraTransform_msg;
 
 
    std::vector<float> rotation= {0,0,0};
@@ -142,7 +142,7 @@ int main(int argc, char **argv)
   cv::startWindowThread();
   image_transport::ImageTransport it(nh);
   SubscribeAndPublish listener;
-  ros::Publisher pub = nh.advertise<package1::cameraTransformation>("CameraTransform", 1);
+  ros::Publisher pub = nh.advertise<stereo_testbed::cameraTransformation>("CameraTransform", 1);
 
 
   image_transport::CameraSubscriber camerasub = it.subscribeCamera("/stereo/left/image_mono", 10, &SubscribeAndPublish::imageCallback, &listener);

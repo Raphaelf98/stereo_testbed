@@ -12,8 +12,8 @@
 #include <vector>
 
 #include<geometry_msgs/Point.h>
-#include<package1/vectorOfPoints.h>
-#include<package1/cameraTransformation.h>
+#include<stereo_testbed/vectorOfPoints.h>
+#include<stereo_testbed/cameraTransformation.h>
 #include<sensor_msgs/PointCloud2.h>
 
 
@@ -238,7 +238,7 @@ class SubscribeAndPublish
 
 private:
 
-  package1::vectorOfPoints points1;
+  stereo_testbed::vectorOfPoints points1;
 
 
   std::vector<geometry_msgs::Point> geomvec;
@@ -256,7 +256,7 @@ private:
 public:
 
 
-  void extrinsicParameterCallback(const package1::cameraTransformation::ConstPtr& parameter_msg)
+  void extrinsicParameterCallback(const stereo_testbed::cameraTransformation::ConstPtr& parameter_msg)
   {
     if (transformSet)return;
     translation[0]= parameter_msg->tvec.x;
@@ -441,7 +441,7 @@ int main(int argc, char **argv)
   bool extrinsicCalibration = false;
   ros::init(argc, argv, "skeleton");
   ros::NodeHandle nh;
-  ros::Publisher pub = nh.advertise<package1::vectorOfPoints>("SkeletonPoints", 1);
+  ros::Publisher pub = nh.advertise<stereo_testbed::vectorOfPoints>("SkeletonPoints", 1);
 
   ros::Rate loop_rate(10);
   SubscribeAndPublish listener;

@@ -5,7 +5,7 @@ import time
 from numpy.polynomial import polynomial as pl
 from matplotlib.pyplot import *
 from std_msgs.msg import String
-from package1.msg import vectorOfPoints
+from stereo_testbed.msg import vectorOfPoints
 #from mpl_toolkits.mplot3d.axes3d import Axes3D
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.interpolate import UnivariateSpline

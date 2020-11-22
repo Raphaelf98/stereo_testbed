@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(package1)
+project(stereo_testbed)
 
 find_package(catkin REQUIRED COMPONENTS
   cv_bridge
@@ -27,7 +27,7 @@ generate_messages(
 )
 
 catkin_package(
- LIBRARIES package1
+ LIBRARIES stereo_testbed
  CATKIN_DEPENDS cv_bridge image_transport roscpp sensor_msgs std_msgs message_runtime
  DEPENDS system_lib Eigen
 )

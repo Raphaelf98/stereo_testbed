@@ -2,19 +2,19 @@
 #include <image_transport/image_transport.h>
 
 #include <opencv2/highgui/highgui.hpp>
-#include<opencv2/calib3d.hpp>
+#include <opencv2/calib3d.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/core.hpp>
-#include<opencv2/core/operations.hpp>
-#include<opencv2/ximgproc.hpp>
+#include <opencv2/core/operations.hpp>
+#include <opencv2/ximgproc.hpp>
 
-#include<math.h>
+#include <math.h>
 #include <vector>
 #include <string>
-#include<geometry_msgs/Point.h>
-#include<package1/vectorOfPoints.h>
-#include<package1/cameraTransformation.h>
-#include<sensor_msgs/PointCloud2.h>
+#include <geometry_msgs/Point.h>
+#include <stereo_testbed/vectorOfPoints.h>
+#include <stereo_testbed/cameraTransformation.h>
+#include <sensor_msgs/PointCloud2.h>
 
 
 
@@ -72,7 +72,7 @@ class SubscribeAndPublish
 
 private:
 
-  package1::vectorOfPoints points1;
+  stereo_testbed::vectorOfPoints points1;
 
 
   std::vector<geometry_msgs::Point> geomvec;
@@ -89,7 +89,7 @@ private:
 public:
 
 
-  void extrinsicParameterCallback(const package1::cameraTransformation::ConstPtr& parameter_msg)
+  void extrinsicParameterCallback(const stereo_testbed::cameraTransformation::ConstPtr& parameter_msg)
   {
     if (transformSet)return;
     translation[0]= parameter_msg->tvec.x;
@@ -239,7 +239,7 @@ int main(int argc, char **argv)
   bool extrinsicCalibration = false;
   ros::init(argc, argv, "skeleton");
   ros::NodeHandle nh;
-  ros::Publisher pub = nh.advertise<package1::vectorOfPoints>("SkeletonPoints", 100);
+  ros::Publisher pub = nh.advertise<stereo_testbed::vectorOfPoints>("SkeletonPoints", 100);
 
   ros::Rate loop_rate(15);
   SubscribeAndPublish listener;

@@ -1,17 +1,18 @@
 <!-- Headings -->
 # stereo_camera_testbed
-This repository contains software which has been developed for a bachelor thesis.
+This repository contains software which has been developed for a bachelor thesis at the HERA (Health Robotic and Automation Lab) at KIT.
+The topic of the thesis is: "Development of a Testbed for Visual Based Tracking and Localization of Continuum Robots".
 
 The package has been tested under ROS Noetic on Ubuntu 20.04. This is research code and any fitness for a particular purpose is disclaimed. 
 
 ## Prerequisites
 This code is embedded within the ROS framework.
-For this reason make sure ROS Noetic is installed on Ubuntu 20.04 and your catkin workspace is set up. 
+For this reason, make sure ROS Noetic is installed on Ubuntu 20.04 and your catkin workspace is set up. 
 
 Go to [ROS-Wiki](http://wiki.ros.org/noetic/Installation/Ubuntu) if you need to install ROS Noetic. 
 
 The repository is organized as a ROS package and its functionality depends on topics published other ROS packages. 
-For this reason make sure topics provided in [ROS-image_pipeline](http://wiki.ros.org/image_pipeline?distro=noetic) packages are available. 
+For this reason, make sure topics provided in [ROS-image_pipeline](http://wiki.ros.org/image_pipeline?distro=noetic) packages are available. 
 
 The [stereo_image_proc](http://wiki.ros.org/stereo_image_proc?distro=noetic) within the image_pipeline package is dependent on camera image- and camera information topics as well as calibrated stereo cameras. 
 
@@ -51,11 +52,13 @@ By starting the skeleton node, extrinisic calibration data is used to express al
 ```
 rosrun stereo_testbed skeleton 
 ```
+(Notice: Best results are achieved by placing the observed continuum robot behind a uni-colored background)
+
 Calculated three dimensional backbone points are published under the SkeletonPoints topic.
 
 ### parametricCurveFitting node
-Inside the parametricCurveFitting node functionality for ordering and approximating backbone points provided by the SkeletonPoints topic.
-At the current state the node is adjusted for single execution and therefore it will use the current backbone points published by the skeleton node. 
+Inside the parametricCurveFitting node, functionality for ordering and approximating backbone points provided by the SkeletonPoints topic is given.
+At the current state, the node is adjusted for single execution and therefore it will use the current backbone points published by the skeleton node. 
 Points are sorted with the help of Dijkstra's algorithm and approximated by a third degree B-spline. Notice that the source for the Dijstra sort is given by the point with the lowest X-coordinate. 
 ```
 rosrun stereo_testbed parametricCurveFitting.py 

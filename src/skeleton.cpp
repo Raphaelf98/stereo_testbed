@@ -16,9 +16,6 @@
 #include <stereo_testbed/cameraTransformation.h>
 #include <sensor_msgs/PointCloud2.h>
 
-
-
-
 cv::Mat gray;
 cv::Mat blur;
 int threshold_value = 0;
@@ -35,17 +32,13 @@ struct Point
   int x;
   int y;
   Point(){}
-  Point(int x , int y):x(x),y(y)
-  {
-
-  }
-
+  Point(int x , int y):x(x),y(y){}
 };
 
 
 void binarize(int, void*)
 {
- cv::threshold(gray,gray,threshold_value, max_BINARY_value, 1);
+  cv::threshold(gray,gray,threshold_value, max_BINARY_value, 1);
 }
 
 //method for converting std::vector<cv::Point> type to ROS message. Returns ROS message type
@@ -53,7 +46,6 @@ std::vector<Point> convertToPointVect(cv::Mat frame1)
 {
   std::vector<cv::Point>  coordinates;
   cv::findNonZero(frame1,coordinates);
-
   Point my_array[coordinates.size()];
   for (int t=0; t < coordinates.size(); t++)
   {
@@ -61,25 +53,20 @@ std::vector<Point> convertToPointVect(cv::Mat frame1)
     int y = coordinates[t].y;
     Point pt(x,y);
     my_array[t] = pt;
-
   }
   std::vector<Point> my_vector (my_array, my_array + sizeof(my_array) / sizeof(Point));
   return my_vector;
- }
+}
 
 class SubscribeAndPublish
 {
 
 private:
-
   stereo_testbed::vectorOfPoints points1;
-
-
   std::vector<geometry_msgs::Point> geomvec;
   geometry_msgs::Point PointXYZ;
   std::vector<Point> SkeletonVect;
   std::vector<geometry_msgs::Point> SpatialSkeleton;
-
   cv::Mat RotationMatrix;
   cv::Mat InvertedRotation;
   std::vector<float> rot = {0,0,0};
@@ -88,9 +75,8 @@ private:
 
 public:
 
-
-  void extrinsicParameterCallback(const stereo_testbed::cameraTransformation::ConstPtr& parameter_msg)
-  {
+void extrinsicParameterCallback(const stereo_testbed::cameraTransformation::ConstPtr& parameter_msg)
+{
     if (transformSet)return;
     translation[0]= parameter_msg->tvec.x;
     translation[1]= parameter_msg->tvec.y;
@@ -101,14 +87,13 @@ public:
     rot[2] = parameter_msg->rvec.z;
     transformSet=true;
     std::cout<<"received extrinsic parameters"<<std::endl;
-  }
+}
 
-  void rigidBodyTransform(geometry_msgs::Point inputPoint , geometry_msgs::Point &transformedPoint )
-  {
+void rigidBodyTransform(geometry_msgs::Point inputPoint , geometry_msgs::Point &transformedPoint )
+{
     cv::Vec3f input;
     if (std::isnan(inputPoint.x))
     {
-
       inputPoint.x =1000;
       inputPoint.y =1000;
       inputPoint.z =1000;
@@ -126,35 +111,25 @@ public:
     cv::subtract(input, translation,subs);
     cv::Mat output = InvertedRotation*cv::Mat(subs);
 
-
     transformedPoint.x = output.at<float>(0);
     transformedPoint.y = output.at<float>(1);
     transformedPoint.z = output.at<float>(2);
+}
 
-  }
-
-  void imageCallback(const sensor_msgs::ImageConstPtr& msg)
-  {
+void imageCallback(const sensor_msgs::ImageConstPtr& msg)
+{
     cv::Mat normal, frame2;
-
     try
     {
       cv::normalize(cv_bridge::toCvShare(msg, "bgr8")->image , normal,0,255,cv::NORM_MINMAX,-1,cv::Mat());
-
       cv::cvtColor(normal, gray , cv::COLOR_RGB2GRAY);
       cv::imshow("gray", gray);
-
       binarize(0,0);
       cv::imshow("binarized",gray);
       cv::ximgproc::thinning(gray,frame2,cv::ximgproc::THINNING_ZHANGSUEN);
-
       cv::imshow("skeleton", frame2);
-
       cv::waitKey(1);
-
       SkeletonVect = convertToPointVect(frame2);
-
-
     }
 
     catch (cv_bridge::Exception& e)
@@ -162,77 +137,70 @@ public:
       ROS_ERROR("Could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
     }
 
-  }
-  void point2CloudCallback(const sensor_msgs::PointCloud2Ptr& pCloud_msg)
-  {
-    //if (SkeletonVect.size() < 3000)
-    //{
-    for (int iter = 0; iter < SkeletonVect.size(); iter++)
+}
+
+void point2CloudCallback(const sensor_msgs::PointCloud2Ptr& pCloud_msg)
+{
+    if (SkeletonVect.size() < 3000)
     {
-      geometry_msgs::Point buff;
-      int u = SkeletonVect[iter].x;
-      int v = SkeletonVect[iter].y;
-
-      pixelTo3DPoint(*pCloud_msg, u, v, buff);
-
-      if( -10 < buff.x && buff.x <10 )
+      for (int iter = 0; iter < SkeletonVect.size(); iter++)
       {
-      SpatialSkeleton.push_back(buff);
+        geometry_msgs::Point buff;
+        int u = SkeletonVect[iter].x;
+        int v = SkeletonVect[iter].y;
+
+        pixelTo3DPoint(*pCloud_msg, u, v, buff);
+
+        if( -10 < buff.x && buff.x <10 )
+        {
+          SpatialSkeleton.push_back(buff);
+        }
+
       }
-
-    }
-     points1.points = SpatialSkeleton;
+    points1.points = SpatialSkeleton;
     SpatialSkeleton.clear();
-    //}
-  }
+    }
+}
 
-  void pixelTo3DPoint(const sensor_msgs::PointCloud2 pCloud, const double u, const double v, geometry_msgs::Point &p)
-  {
+void pixelTo3DPoint(const sensor_msgs::PointCloud2 pCloud, const double u, const double v, geometry_msgs::Point &p)
+{
     // get width and height of 2D point cloud data
-          int width = pCloud.width;
-          int height = pCloud.height;
+     int width = pCloud.width;
+     int height = pCloud.height;
 
-          // Convert from u (column / width), v (row/height) to position in array
-          // where X,Y,Z data starts
-          int arrayPosition = v*pCloud.row_step + u*pCloud.point_step;
+     // Convert from u (column / width), v (row/height) to position in array
+     // where X,Y,Z data starts
+     int arrayPosition = v*pCloud.row_step + u*pCloud.point_step;
 
-          // compute position in array where x,y,z data start
-          int arrayPosX = arrayPosition + pCloud.fields[0].offset; // X has an offset of 0
-          int arrayPosY = arrayPosition + pCloud.fields[1].offset; // Y has an offset of 4
-          int arrayPosZ = arrayPosition + pCloud.fields[2].offset; // Z has an offset of 8
+     // compute position in array where x,y,z data start
+     int arrayPosX = arrayPosition + pCloud.fields[0].offset; // X has an offset of 0
+     int arrayPosY = arrayPosition + pCloud.fields[1].offset; // Y has an offset of 4
+     int arrayPosZ = arrayPosition + pCloud.fields[2].offset; // Z has an offset of 8
 
-          float X=0.0;
-          float Y=0.0;
-          float Z=0.0;
+     float X=0.0;
+     float Y=0.0;
+     float Z=0.0;
 
-          memcpy(&X, &pCloud.data[arrayPosX], sizeof(float));
-          memcpy(&Y, &pCloud.data[arrayPosY], sizeof(float));
-          memcpy(&Z, &pCloud.data[arrayPosZ], sizeof(float));
+     memcpy(&X, &pCloud.data[arrayPosX], sizeof(float));
+     memcpy(&Y, &pCloud.data[arrayPosY], sizeof(float));
+     memcpy(&Z, &pCloud.data[arrayPosZ], sizeof(float));
 
 
-          geometry_msgs::Point input_;
+     geometry_msgs::Point input_;
 
-          input_.x = X;
-          input_.y = Y;
-          input_.z = Z;
-          rigidBodyTransform(input_,p);
+     input_.x = X;
+     input_.y = Y;
+     input_.z = Z;
+     rigidBodyTransform(input_,p);
 
 }
 
-
-
-
-  void POIPublisher(ros::Publisher* pub)
-  {
-
-
-    pub->publish(points1);
-
-  }
-
+void POIPublisher(ros::Publisher* pub)
+{
+  pub->publish(points1);
+}
 
 };
-
 
 int main(int argc, char **argv)
 {
@@ -257,20 +225,11 @@ int main(int argc, char **argv)
   image_transport::Subscriber sub = it.subscribe("/stereo/left/image_rect", 10, &SubscribeAndPublish::imageCallback, &listener);
   ros::Subscriber sub2 = nh.subscribe("stereo/points2",10,&SubscribeAndPublish::point2CloudCallback, &listener);
 
-
-
-
-   while (ros::ok())
-     {
-
-
+  while (ros::ok())
+  {
       listener.POIPublisher(&pub);
-
       ros::spinOnce();
-
-   }
-
-
+  }
   cv::destroyWindow(window);
 
 }
